@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم - نظام السلام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --primary-color: #1B365D; --bg-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; display: flex; direction: rtl; }
+        .sidebar { width: 260px; background-color: var(--primary-color); color: white; min-height: 100vh; position: fixed; right: 0; top: 0; padding-top: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ecf0f1; text-decoration: none; font-size: 15px; }
+        .sidebar-menu li a i { margin-left: 10px; font-size: 18px; width: 25px; }
+        .sidebar-menu li.active a { background-color: rgba(255,255,255,0.1); border-right: 4px solid #f39c12; }
+        .main-content { margin-right: 260px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; background: white; padding: 15px 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .filter-section { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); margin-bottom: 25px; display: flex; gap: 15px; align-items: center; }
+        .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; align-items: center; justify-content: space-between; }
+        .card i { font-size: 35px; color: var(--primary-color); }
+        .charts-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .chart-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; height: 350px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        input, button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .btn-filter { background: var(--primary-color); color: white; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li class="active"><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> لوحة التحكم</a></li>
+            <li><a href="database.html"><i class="fa-solid fa-database"></i> قاعدة البيانات</a></li>
+            <li><a href="pricing.html"><i class="fa-solid fa-tags"></i> شاشة التسعير</a></li>
+            <li><a href="trips.html"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+            <li><a href="queries.html"><i class="fa-solid fa-magnifying-glass"></i> بند الاستعلامات</a></li>
+            <li><a href="invoice.html"><i class="fa-solid fa-file-invoice-dollar"></i> الفواتير</a></li>
+            <li><a href="login.html" style="color: #e74c3c;"><i class="fa-solid fa-right-from-bracket"></i> خروج</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>لوحة التحكم الإحصائية الديناميكية</h2>
+            <div class="user-info">مرحباً بك: <strong id="userLabel">تحميل...</strong></div>
+        </div>
+
+        <div class="filter-section">
+            <label>من تاريخ:</label>
+            <input type="date" id="dashFromDate">
+            <label>إلى تاريخ:</label>
+            <input type="date" id="dashToDate">
+            <button class="btn-filter" onclick="loadDashboardData()">تحديث الإحصائيات 🔄</button>
+        </div>
+
+        <div class="cards-grid">
+            <div class="card">
+                <div><h3 id="dashTripsCount">0</h3><p>عدد مشاوير الفترة</p></div>
+                <i class="fa-solid fa-truck-moving" style="color: #3498db;"></i>
+            </div>
+            <div class="card">
+                <div><h3 id="dashTotalCost">0.00</h3><p>إجمالي تكلفة الفترة (جنيه)</p></div>
+                <i class="fa-solid fa-money-check-dollar" style="color: #2ecc71;"></i>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <h4>نسبة تكلفة الإدارات من الإجمالي (%)</h4>
+                <canvas id="deptPieChart" style="max-height: 280px; max-width: 280px;"></canvas>
+            </div>
+            <div class="chart-box">
+                <h4>توزيع التكلفة على الإدارات (بالجنيه)</h4>
+                <canvas id="deptBarChart" style="max-height: 280px; max-width: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAf-xssfq1KrNKwLE5Nr88P6dIvs5Byz7c",
+        authDomain: "elsalam-system-2e469.firebaseapp.com",
+        databaseURL: "https://elsalam-system-2e469-default-rtdb.firebaseio.com",
+        projectId: "elsalam-system-2e469",
+        storageBucket: "elsalam-system-2e469.firebasestorage.app",
+        messagingSenderId: "422861890504",
+        appId: "1:422861890504:web:bad369e188f323bf7d56fd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    document.getElementById('userLabel').innerText = localStorage.getItem('username') || "مستخدم نظام السلام";
+
+    let pieChartInstance = null;
+    let barChartInstance = null;
+
+    function loadDashboardData() {
+        const fromDate = document.getElementById('dashFromDate').value;
+        const toDate = document.getElementById('dashToDate').value;
+
+        database.ref('trips/').once('value', function(snapshot) {
+            let count = 0;
+            let total = 0;
+            let deptMap = {};
+
+            snapshot.forEach(function(child) {
+                const data = child.val();
+                const tDate = data.tripDate;
+
+                if(fromDate && tDate < fromDate) return;
+                if(toDate && tDate > toDate) return;
+
+                count++;
+                const cost = parseFloat(data.totalCost) || 0;
+                total += cost;
+
+                const dept = data.department || "غير محدد";
+                deptMap[dept] = (deptMap[dept] || 0) + cost;
+            });
+
+            document.getElementById('dashTripsCount').innerText = count;
+            document.getElementById('dashTotalCost').innerText = total.toFixed(2);
+
+            const labels = Object.keys(deptMap);
+            const values = Object.values(deptMap);
+
+            renderCharts(labels, values);
+        });
+    }
+
+    function renderCharts(labels, values) {
+        if(pieChartInstance) pieChartInstance.destroy();
+        if(barChartInstance) barChartInstance.destroy();
+
+        if(labels.length === 0) { labels = ["لا توجد بيانات"]; values = [0]; }
+
+        const ctxPie = document.getElementById('deptPieChart').getContext('2d');
+        pieChartInstance = new Chart(ctxPie, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: ['#1B365D', '#2ecc71', '#3498db', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c', '#e67e22']
+                }]
+            }
+        });
+
+        const ctxBar = document.getElementById('deptBarChart').getContext('2d');
+        barChartInstance = new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'التكلفة بالجنيه',
+                    data: values,
+                    backgroundColor: '#3498db'
+                }]
+            },
+            options: { scales: { y: { beginAtZero: true } } }
+        });
+    }
+    window.onload = function() { loadDashboardData(); };
+</script>
+</body>
+</html>

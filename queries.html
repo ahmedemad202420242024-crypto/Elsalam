@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>بند الاستعلامات الشامل - نظام السلام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root { --primary-color: #1B365D; --bg-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; display: flex; direction: rtl; }
+        .sidebar { width: 260px; background-color: var(--primary-color); color: white; min-height: 100vh; position: fixed; right: 0; top: 0; padding-top: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ecf0f1; text-decoration: none; font-size: 15px; }
+        .sidebar-menu li a i { margin-left: 10px; font-size: 18px; width: 25px; }
+        .sidebar-menu li.active a { background-color: rgba(255,255,255,0.1); border-right: 4px solid #f39c12; }
+        .main-content { margin-right: 260px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .search-box { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .search-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; text-align: right; }
+        .form-group label { margin-bottom: 5px; font-weight: bold; color: #333; font-size: 14px; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .btn-search { background: #f39c12; color: white; font-weight: bold; border: none; cursor: pointer; padding: 12px; font-size: 15px; transition: 0.2s; }
+        .btn-search:hover { background: #d38309; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 12px 10px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: var(--primary-color); color: white; }
+        .summary { background: #eef4f8; padding: 15px; text-align: left; border-radius: 4px; font-weight: bold; font-size: 16px; margin-top: 15px; }
+        .btn-edit { background-color: #2ecc71; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-left: 5px; }
+        .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .btn-edit:hover { background-color: #27ae60; }
+        .btn-delete:hover { background-color: #c0392b; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> لوحة التحكم</a></li>
+            <li><a href="database.html"><i class="fa-solid fa-database"></i> قاعدة البيانات</a></li>
+            <li><a href="pricing.html"><i class="fa-solid fa-tags"></i> شاشة التسعير</a></li>
+            <li><a href="trips.html"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+            <li class="active"><a href="queries.html"><i class="fa-solid fa-magnifying-glass"></i> بند الاستعلامات</a></li>
+            <li><a href="invoice.html"><i class="fa-solid fa-file-invoice-dollar"></i> الفواتير</a></li>
+            <li><a href="login.html" style="color: #e74c3c;"><i class="fa-solid fa-right-from-bracket"></i> خروج</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="search-box">
+            <h3>🔍 بند الاستعلامات المجمع والفلترة المتقدمة عن المشاوير</h3>
+            <div class="search-grid">
+                <div class="form-group"><label>من تاريخ:</label><input type="date" id="qFromDate"></div>
+                <div class="form-group"><label>إلى تاريخ:</label><input type="date" id="qToDate"></div>
+                <div class="form-group"><label>رقم السيارة:</label><select id="qCarNum"></select></div>
+                <div class="form-group"><label>مدير المشروع:</label><select id="qManager"></select></div>
+                <div class="form-group"><label>الإدارة:</label><select id="qDepartment"></select></div>
+            </div>
+            <button class="btn-search" onclick="executeQuery()">تشغيل الفلتر واستخراج البيانات 🎯</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>م</th>
+                    <th>تاريخ التنفيذ</th>
+                    <th>المستخدم</th>
+                    <th>رقم السيارة</th>
+                    <th>مدير المشروع</th>
+                    <th>الإدارة</th>
+                    <th>المسافة</th>
+                    <th>الزيادة</th>
+                    <th>تكلفة المشوار</th>
+                    <th>التحكم</th>
+                </tr>
+            </thead>
+            <tbody id="queriesTableBody">
+                <tr><td colspan="10">حدد خيارات الفلتر واضغط تشغيل...</td></tr>
+            </tbody>
+        </table>
+        <div class="summary">إجمالي التكلفة المفلترة الناتجة: <span id="qTotalSum" style="color:#2ecc71;">0.00</span> جنيه</div>
+    </div>
+
+<script>
+    // تهيئة Firebase بالبيانات الخاصة بك
+    const firebaseConfig = {
+        apiKey: "AIzaSyAf-xssfq1KrNKwLE5Nr88P6dIvs5Byz7c",
+        authDomain: "elsalam-system-2e469.firebaseapp.com",
+        databaseURL: "https://elsalam-system-2e469-default-rtdb.firebaseio.com",
+        projectId: "elsalam-system-2e469",
+        storageBucket: "elsalam-system-2e469.firebasestorage.app",
+        messagingSenderId: "422861890504",
+        appId: "1:422861890504:web:bad369e188f323bf7d56fd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    // 1. مصفوفات البيانات الثابتة للقوائم المنسدلة بناءً على طلبك
+    const carsArray = [
+        "ر ج ف 126", "4247 ا د ر", "1492 ا د ف", "ا ب و 1392", "7696 ا س ب", "س ف ق 9491", "1497 ا د ف", 
+        "أ د ف 1495", "أ ط ص 2462", "3468 ك ر ا", "9492 س ن ط", "م ر 9226", "و ر ج 914", "3659 ك د ه", 
+        "أ ص ي 3493", "س أ م 5838", "س د ق 5828", "321 ب ل ق", "4128 ا س و", "5347 ا ب ل", "و د و 264", 
+        "4923 ا ج ي", "578 ق ي ق", "178 ن ع ي", "5634 ا ر و", "1475 ا د ف", "8694 ا ي ن", "5932 ا ب و", 
+        "ق ي ق 578", "2751 ا ر ن", "1549 ا ر م", "8739 ب ي ط", "2656 ا ب ل", "7828 ج و ل", "2629 ا ب ل", 
+        "1765 ا ه ج", "2987 ا س ف", "8748 ج ط ع", "س س د 2684", "341 ط ج ب", "8171 ج ط ع", "ك ج ط 7298", 
+        "576 د ج ق", "ك د ع 6128", "415 س ي د", "4248 ا د ر", "687 ل د ل", "7858 ا س ب", "أ ر ل 4573", 
+        "2781 ك ر ا", "7315 ا ع ف", "735 ق ن ق", "9134 ا ب ص", "791 ط ي د", "7514 ا ق ي", "7919 ج و ل", 
+        "أ ب ل 2656", "أ ب ل 2629", "8572 ب ر ا", "6346 ا ج ف", "8231 ا ص ا", "1389 ا ب و", "2679 ا ب و", 
+        "7349 ا ف ق", "6234 ا ف ق", "أ ف و 2634", "أ ه ف 2984", "4156 ا ب و", "ا ف ق 6234", "4956 ا ف ق", 
+        "6948 ا ف ق", "8725 ا ه ق", "3749 ا و ي", "4179 ا ص ا", "4358 ا ف و", "6149 ا ي ل", "2356 ا م ب", 
+        "196 ق ل ب", "967 ه ج د", "أ ي ل 6149", "9568 ا و ب", "7452 ا ف ا", "4746 س د ق", "أ ف أ 8519", 
+        "146 ن ج ه", "6983 ك د ف", "7487 س ه ن", "592 ن م د", "3751 ا و ي", "415 س ي د", "7819 ا ج و", 
+        "4352 ا و ي", "6847 ا ع و", "1236 ر ص ل", "196 ه ن ع", "6712 ع ا ع", "9265 ا ب ص", "8171 س م ط", 
+        "أ ه ف 4213", "أ د ر 4247", "4125 ا ب و", "ر ب ل 9469", "أ د و 7683", "أ ب م 1246", "ك ط ف 6897", 
+        "أ ص أ 2647", "أ ه ف 2947", "2397 ع ط ل", "أ د و 2635", "2568 ط ي ف", "2947 ا ه ف", "5145 س ف ط", 
+        "5921 س ي س", "2987 ر ط ب", "1345 ق و ي", "746 ج ي ب", "أ ر و 6931", "4367 ا ب و", "7488 ع م ا"
+    ];
+
+    const managersArray = [
+        "اداريات جيش", "الحج علي", "أ / ابراهيم عرفة", "أ / احمد سعيد", "أ / احمد يحيي", "أ / طارق بكر", "أ / اسامه السلموني", 
+        "أ / محمد عبد الواحد", "أ / ايهاب رياض", "أ / بركة", "أ / بلال التركي", "أ / حسين فضل الله", "أ / خالد محمود", 
+        "أ / طارق ايمن", "أ / عمار", "أ / محمد شبانة", "أ / محمد عرفة", "أ / هيثم موسي", "أ / ياسر السلموني", "م / احمد العربي", 
+        "أ / يحيي عادل", "خدمات عامة", "م / احمد وهدان", "م / اسلام عطية", "م / سامح السعيد", "م / شريف", "م / عبد الحميد سامي", 
+        "م / عبد الحميد عبد الفتاح", "م / عبد الله محمد", "م / مايكل", "م / محمد حمدي", "م / محمد خيري", "م / محمد ربيع", 
+        "م / احمد عبد المعز", "م / محمد عبد الحكم", "م / محمد عمارة", "م / محمود الشورباجي"
+    ];
+
+    const departmentsArray = [
+        "الادارة الهندسية", "ادارة العليا", "المشتريات العامة", "المشتريات قطع الغيار", "الانتاج - كريتال", "الادارة المالية", 
+        "ادارة الحركة و النقل", "ادارة المخازن", "ادارة عمليات الموارد البشريه", "ادارة الامن", "الانتاج - النجارة", 
+        "الانتاج - الالموتال", "النظم و المعلومات", "المشتريات المتخصصة", "ادارة الشؤون القانونية", "نقل ثقيل و المعدات", 
+        "اسكندرية", "خدمات عامة", "اللوجيستي"
+    ];
+
+    // 2. تعبئة القوائم المنسدلة تلقائياً عند فتح الصفحة
+    window.onload = function() {
+        const carSelect = document.getElementById('qCarNum');
+        carSelect.innerHTML = '<option value="">كل السيارات</option>';
+        carsArray.forEach(car => { carSelect.innerHTML += `<option value="${car}">${car}</option>`; });
+
+        const managerSelect = document.getElementById('qManager');
+        managerSelect.innerHTML = '<option value="">كل المدراء</option>';
+        managersArray.forEach(mgr => { managerSelect.innerHTML += `<option value="${mgr}">${mgr}</option>`; });
+
+        const deptSelect = document.getElementById('qDepartment');
+        deptSelect.innerHTML = '<option value="">كل الإدارات</option>';
+        departmentsArray.forEach(dept => { deptSelect.innerHTML += `<option value="${dept}">${dept}</option>`; });
+        
+        // جلب البيانات بدون فلاتر كعرض أولي
+        executeQuery();
+    };
+
+    // 3. دالة الفلترة واستخراج البيانات مع الترقيم التلقائي
+    function executeQuery() {
+        const fromDate = document.getElementById('qFromDate').value;
+        const toDate = document.getElementById('qToDate').value;
+        const carNum = document.getElementById('qCarNum').value;
+        const manager = document.getElementById('qManager').value;
+        const department = document.getElementById('qDepartment').value;
+
+        database.ref('trips/').once('value', function(snapshot) {
+            const tbody = document.getElementById('queriesTableBody'); 
+            tbody.innerHTML = '';
+            let totalCostSum = 0;
+            let counter = 1; // الترقيم التلقائي
+
+            snapshot.forEach(function(child) {
+                const data = child.val();
+                const key = child.key; // معرف السجل الفريد في الفايربيز
+
+                // تطبيق شروط الفلاتر
+                if(fromDate && data.tripDate < fromDate) return;
+                if(toDate && data.tripDate > toDate) return;
+                if(carNum && data.carNumber !== carNum) return;
+                if(manager && data.projectManager !== manager) return;
+                if(department && data.department !== department) return;
+
+                totalCostSum += parseFloat(data.totalCost) || 0;
+
+                // بناء صفوف الجدول مع الترقيم وأزرار التحكم
+                tbody.innerHTML += `<tr>
+                    <td>${counter++}</td>
+                    <td>${data.tripDate || ''}</td>
+                    <td>${data.username || ''}</td>
+                    <td>${data.carNumber || ''}</td>
+                    <td>${data.projectManager || ''}</td>
+                    <td>${data.department || ''}</td>
+                    <td>${data.distance || 0} كم</td>
+                    <td>${data.extraDistance || 0} كم</td>
+                    <td>${parseFloat(data.totalCost || 0).toFixed(2)} جنيه</td>
+                    <td>
+                        <button class="btn-edit" onclick="editTrip('${key}')"><i class="fa-solid fa-pen"></i> تعديل</button>
+                        <button class="btn-delete" onclick="deleteTrip('${key}')"><i class="fa-solid fa-trash"></i> حذف</button>
+                    </td>
+                </tr>`;
+            });
+
+            document.getElementById('qTotalSum').innerText = totalCostSum.toFixed(2);
+            if(tbody.innerHTML === '') {
+                tbody.innerHTML = '<tr><td colspan="10">لا توجد نتائج تطابق هذا البحث.</td></tr>';
+            }
+        });
+    }
+
+    // 4. دالة الحذف من قاعدة البيانات مع التحديث التلقائي لشاشة الاستعلامات
+    function deleteTrip(key) {
+        if(confirm('هل أنت متأكد تماماً من حذف هذا المشوار نهائياً؟')) {
+            database.ref('trips/' + key).remove()
+                .then(() => {
+                    alert('تم حذف المشوار بنجاح!');
+                    executeQuery(); // إعادة تشغيل الفلتر لتحديث البيانات أمامك فوراً
+                })
+                .catch(error => alert('حدث خطأ أثناء الحذف: ' + error.message));
+        }
+    }
+
+    // 5. دالة التعديل (تحول المستخدم لصفحة المشاوير مع إرسال معرف السجل)
+    function editTrip(key) {
+        window.location.href = "trips.html?edit=" + key;
+    }
+</script>
+</body>
+</html>

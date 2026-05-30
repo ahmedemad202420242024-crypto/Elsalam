@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المشاوير - نظام السلام</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <style>
+        :root { --primary-color: #1B365D; --bg-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; display: flex; direction: rtl; }
+        .sidebar { width: 260px; background-color: var(--primary-color); color: white; min-height: 100vh; position: fixed; right: 0; top: 0; padding-top: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ecf0f1; text-decoration: none; font-size: 15px; }
+        .sidebar-menu li.active a { background-color: rgba(255,255,255,0.1); border-right: 4px solid #f39c12; }
+        .main-content { margin-right: 260px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .form-group { display: flex; flex-direction: column; text-align: right; }
+        label { margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .total-box { background: #e8f8f5; border: 1px dashed #2ecc71; padding: 15px; text-align: center; border-radius: 4px; margin-top: 15px; }
+        .total-box h3 { margin: 5px 0 0; color: #2ecc71; }
+        .btn { background: #1B365D; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li class="active"><a href="#"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h2>إضافة مشوار تشغيلي</h2>
+            <form id="tripForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>تاريخ تنفيذ الطلب:</label>
+                        <input type="date" id="tripDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>المستخدم:</label>
+                        <input type="text" id="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم السيارة:</label>
+                        <select id="carNumber" required onchange="handleCarChange()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>ماركة ونوع السيارة:</label>
+                        <input type="text" id="carType" readonly style="background-color: #f9f9f9;">
+                    </div>
+                    
+                    <input type="hidden" id="basePrice">
+                    <input type="hidden" id="extraPrice">
+
+                    <div class="form-group"><label>مدير المشروع:</label><select id="projectManager" required></select></div>
+                    <div class="form-group"><label>الإدارة التابع لها:</label><select id="department" required></select></div>
+                    <div class="form-group"><label>القسم التشغيلي:</label><select id="sectionField" required></select></div>
+                    <div class="form-group"><label>موقع الشركة الرئيسي:</label><select id="mainLocation" required></select></div>
+                    
+                    <div class="form-group"><label>عداد البداية (كم):</label><input type="number" id="startCounter" value="0" required oninput="calculateTotal()"></div>
+                    <div class="form-group"><label>عداد النهاية (كم):</label><input type="number" id="endCounter" value="0" required oninput="calculateTotal()"></div>
+                </div>
+                
+                <div class="total-box">
+                    <p>التكلفة الإجمالية:</p>
+                    <h3><span id="liveTotal">0.00</span> جنيه</h3>
+                </div>
+                
+                <button type="submit" class="btn">حفظ وإرسال المشوار 🚀</button>
+            </form>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAf-xssfq1KrNKwLE5Nr88P6dIvs5Byz7c",
+        authDomain: "elsalam-system-2e469.firebaseapp.com",
+        databaseURL: "https://elsalam-system-2e469-default-rtdb.firebaseio.com",
+        projectId: "elsalam-system-2e469",
+        storageBucket: "elsalam-system-2e469.firebasestorage.app",
+        messagingSenderId: "422861890504",
+        appId: "1:422861890504:web:bad369e188f323bf7d56fd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const carDatabase = {
+        "ر ج ف 126": { type: "Daihatsu Terios", base: 2.5, extra: 3.5 },
+        "4247 ا د ر": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "1492 ا د ف": { type: "Renault - dokker", base: 4, extra: 5 },
+        "ا ب و 1392": { type: "Chevrolet - tfr", base: 4, extra: 5 },
+        "7696 ا س ب": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "س ف ق 9491": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "1497 ا د ف": { type: "Renault - dokker", base: 4, extra: 5 },
+        "أ د ف 1495": { type: "Renault - dokker", base: 4, extra: 5 },
+        "أ ط ص 2462": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "3468 ك ر ا": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "9492 س ن ط": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "م ر 9226": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "و ر ج 914": { type: "Fiat Tipo", base: 5, extra: 6 },
+        "3659 ك د ه": { type: "Nissan - centra", base: 5, extra: 6 },
+        "أ ص ي 3493": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "س أ م 5838": { type: "Citroen", base: 5, extra: 6 },
+        "س د ق 5828": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "321 ب ل ق": { type: "Nissan - centra", base: 5, extra: 6 },
+        "4128 ا س و": { type: "Suzuki - pickup.", base: 5, extra: 6 },
+        "5347 ا ب ل": { type: "Suzuki - pickup.", base: 5, extra: 6 },
+        "و د و 264": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "4923 ا ج ي": { type: "Suzuki - suzuki van..", base: 5, extra: 6 },
+        "578 ق ي ق": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "178 ن ع ي": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "5634 ا ر و": { type: "FIAT - doblo classic", base: 5.75, extra: 6.75 },
+        "1475 ا د ف": { type: "Renault - dokker", base: 5.75, extra: 6.75 },
+        "8694 ا ي ن": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "5932 ا ب و": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "2751 ا ر ن": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "1549 ا ر م": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8739 ب ي ط": { type: "Isuzu - td", base: 6.9, extra: 7.9 },
+        "2656 ا ب ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7828 ج و ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "2629 ا ب ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "1765 ا ه ج": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "2987 ا س ف": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8748 ج ط ع": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "س س د 2684": { type: "Xpander", base: 6.9, extra: 7.9 },
+        "341 ط ج ب": { type: "Nissan - centra", base: 6.9, extra: 7.9 },
+        "8171 ج ط ع": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "ك ج ط 7298": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "576 د ج ق": { type: "Toyota - Corolla", base: 6.9, extra: 7.9 },
+        "ك د ع 6128": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "415 س ي د": { type: "Nissan - D22", base: 6.9, extra: 7.9 },
+        "4248 ا د ر": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "687 ل د ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7858 ا س ب": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "أ ر ل 4573": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "2781 ك ر ا": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7315 ا ع ف": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "735 ق ن ق": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "9134 ا ب ص": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "791 ط ي د": { type: "Nissan - D22", base: 6.9, extra: 7.9 },
+        "7514 ا ق ي": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "7919 ج و ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "أ ب ل 2656": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "أ ب ل 2629": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8572 ب ر ا": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "6346 ا ج ف": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "8231 ا ص ا": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "1389 ا ب و": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "2679 ا ب و": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "7349 ا ف ق": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "6234 ا ف ق": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "أ ف و 2634": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "أ ه ف 2984": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "4156 ا ب و": { type: "Chevrolet - tfr 7000", base: 8.05, extra: 9.05 },
+        "ا ف ق 6234": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "4956 ا ف ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "6948 ا ف ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "8725 ا ه ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "3749 ا و ي": { type: "Toyota - hiace", base: 8.625, extra: 9.625 },
+        "4179 ا ص ا": { type: "Nissan - Nissan Pickup", base: 8.625, extra: 9.625 },
+        "4358 ا ف و": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "9568 ا و ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "6149 ا ي ل": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "2356 ا م ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "196 ق ل ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "967 ه ج د": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "أ ي ل 6149": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "7452 ا ف ا": { type: "Citroen", base: 11.5, extra: 12.5 },
+        "4746 س د ق": { type: "Toyota - rush", base: 11.5, extra: 12.5 },
+        "أ ف أ 8519": { type: "Citroen", base: 11.5, extra: 12.5 },
+        "146 ن ج ه": { type: "Peugeot - 5008", base: 11.5, extra: 12.5 },
+        "6983 ك د ف": { type: "Kia - sportage", base: 11.5, extra: 12.5 },
+        "7487 س ه ن": { type: "Kia - sportage", base: 11.5, extra: 12.5 },
+        "592 ن م د": { type: "Toyota - hiace", base: 17.25, extra: 19.25 },
+        "3751 ا و ي": { type: "Toyota - hiace 1", base: 17.25, extra: 19.25 },
+        "7819 ا ج و": { type: "Chevrolet - jambo7000", base: 20, extra: 23 },
+        "4352 ا و ي": { type: "Toyota - COASTER", base: 34.5, extra: 38.5 }
+    };
+
+    const managers = ["اداريات جيش", "الحج علي", "أ / ابراهيم عرفة", "أ / احمد سعيد", "أ / احمد يحيي", "أ / طارق بكر", "أ / اسامه السلموني", "أ / محمد عبد الواحد", "أ / ايهاب رياض", "أ / بركة", "أ / بلال التركي", "أ / حسين فضل الله", "أ / خالد محمود", "أ / طارق ايمن", "أ / عمار", "أ / محمد شبانة", "أ / محمد عرفة", "أ / هيثم موسي", "أ / ياسر السلموني", "م / احمد العربي", "أ / يحيي عادل", "خدمات عامة", "م / احمد وهدان", "م / اسلام عطية", "م / سامح السعيد", "م / شريف", "م / عبد الحميد سامي", "م / عبد الحميد عبد الفتاح", "م / عبد الله محمد", "م / مايكل", "م / محمد حمدي", "م / محمد خيري", "م / محمد ربيع", "م / احمد عبد المعز", "م / محمد عبد الحكم", "م / محمد عمارة", "م / محمود الشورباجي"];
+    const departments = ["الادارة الهندسية", "ادارة العليا", "المشتريات العامة", "المشتريات قطع الغيار", "الانتاج - كريتال", "الادارة المالية", "ادارة الحركة و النقل", "ادارة المخازن", "ادارة عمليات الموارد البشريه", "ادارة الامن", "الانتاج - النجارة", "الانتاج - الالموتال", "النظم و المعلومات", "المشتريات المتخصصة", "ادارة الشؤون القانونية", "نقل ثقيل و المعدات", "اسكندرية", "خدمات عامة", "اللوجيستي"];
+    const sections = ["ادارة الهندسية", "ادارة العليا", "مشتريات العامة", "السقالات", "مشتريات قطع الغيار", "صيانة", "كريتال", "الخزينة", "قسم نقل الخفيف", "المخازن", "ادارة الموارد البشرية", "ادارة الامن", "مصنع النجارة", "الالموتال", "قسم الالموتال", "نظم و المعلومات", "التصوير", "المشتريات المتخصصة", "ادارة المالية", "المقاولين", "مدني الكيان", "مدني", "العمارة الجديدة - التجمع - نيو جيزا", "الشؤون القانونية", "حركة المعدات", "كهرباء", "المعدات - كهرباء", "اسكندرية", "خدمات عامة", "مدير المشروعات", "مكتب الفني - كهرباء", "تنفيذ", "ميكانيكا", "مكتب الفني"];
+    const sites = ["الهيئه", "العاصمه - اكتوبر", "المعصره", "المقر", "One time vendor general purchasing", "قباء فاستتترز للعدد والادوات العموميه", "الجيوشى لتجاره العدد والالات", "محمد سامى عبدالستار حجازى", "شركه الصقر لمعدات البناء", "محمود محمد الحفنى على", "الشركه الدوليه لتكنولوجيا العزل انسوتك", "مجاهد صدقي نصار وشريكة", "طيبه لتشغيل وتشكيل المعادن", "مؤسسه اطياف ايجيبت للمقاولات والتوريدات العموميه", "علاء الدين السيد سلمى", "القادسيه للصناعات الهندسيه", "المكه للتوريدات العموميه", "نقل داخلي", "خالد احمد عبدالموجود", "شركة الالمانية لكيماويات البناء الحديث", "مودرن كونستراكشن للتعمير", "شافعى للتوريدات الصناعيه وشركاه", "جراج المستشار", "كريتال", "حديد شبك", "الواحة", "جميع مواقع الكيان", "Oil For Miles", "بلبيس", "دهانات", "مستلزمات سكنية", "بوفيه", "إدوات مكتبيه", "مستلزمات بوفية", "الواح كونتر", "بلايا", "نيو كايرو", "جميع مواقع الشركة", "مصنع النجارة", "مصنع رقم ( 2 ) الاسكندرية", "شركه السلام لتجاره الالمونيوم", "التمساح لتجاره قطاعات الالمومنيوم والاكسسوار", "مصنع رقم ( 1 ) الاسكندرية", "مصنع اشراقة للسلك الالمونيوم", "مركز ماكينات ومستلزمات الالومنيوم", "الامير لاكسسوارات الالمومنيوم", "الدوليه 21 لانتاج قطاعات الالمومنيوم الملونه", "مصنع رقم ( 6 ) الاسكندرية", "مركز ماكينات ومستلزمات الالومنيوم (اكسسوارات)", "مصانع الالموتال", "ار 2", "مصنع الالموتال 1 ؛ 2 ؛ 3 + الزجاج", "الجيزه لتصنيع مستلزمات الكابلات", "محمد احمد جمعه احمد", "جولدن لايت للتوريدات العمومية", "سمارت هوم ابراهيم خيرى سعيد ابراهيم وشركاه", "ايجي تك للحلول الفنية", "تكنو ماستر وجدى صبحى منير رزق", "شركه ثرى برازرز للصناعات الهندسيه والكهربيه", "المصريه الالمانيه لصناعه المواسير الحديثه", "الجمهوريه للتجاره والصناعه", "الندي للتكييف والصناعات الهندسيه", "بيتا اليكتريك كابلز", "سعيد سويلم سعيد احمد نيوايجا للصناعات الكهربائيه", "الشركة العالميه للمسبوكات والصناعات المتطوره", "الشحنه الكهربائية للكابلات المتخصصة", "العربيه للصناعات الانشائيه فيتو بلاست", "داكت ماستر", "شركه تل الزهور الصناعيه لمنتجات البلاستيك", "الفاتورو للتوريدات العموميه والمقاولات", "كيميكو", "الالمانية للتجاره والتوريدات صبحى ربيع جاب الله", "العالمين", "العمارة الجديدة", "العمارة الجديدة - التجمع", "العمارة الجديدة - التجمع - نيو جيزا", "كرتونة ورق", "خزنات حديد", "مسامير", "اداوات مكافحة حريق", "خزان بلاستيك", "مواسير", "لفات سلك فيبر المونيوم", "مفاتيح & انارة", "كابلات", "بسكويت خرسانه", "وصلات", "سيراميك", "أسمنت", "عزل حراري", "بودرة", "اسكندرية", "خدمات عامة", "العالمين + بلايا + سنجور + اليابانية", "سنجور و اليابانية", "الرماية", "مصانع اسكندرية + العالمين", "المعاهد العسكرية", "المعرفة", "جاردنيا", "المعرفة - نيو كايروا - بورسعيد - الواحة - جاردنيا - العاصمة", "بوسعيد", "الضبعة", "الضبعة + اكتوبر", "اكتوبر", "المولات - ال700", "استشاري موقع 700 فيلا", "نادي الشمس", "الاسمرات", "الاسمرات + نيو جيزا", "نيو جيزه", "استشاري موقع الرماية", "جميع مواقع القاهرة", "بلايا + العالمين", "شيراتون"];
+
+    function populateSelects() {
+        const fill = (id, arr) => {
+            const el = document.getElementById(id);
+            arr.sort().forEach(item => { el.innerHTML += `<option value="${item}">${item}</option>`; });
+        };
+        fill('projectManager', managers);
+        fill('department', departments);
+        fill('sectionField', sections);
+        fill('mainLocation', sites);
+        
+        const carEl = document.getElementById('carNumber');
+        Object.keys(carDatabase).sort().forEach(car => {
+            carEl.innerHTML += `<option value="${car}">${car}</option>`;
+        });
+    }
+
+    function handleCarChange() {
+        const carNum = document.getElementById('carNumber').value;
+        const data = carDatabase[carNum];
+        if(data) {
+            document.getElementById('carType').value = data.type;
+            document.getElementById('basePrice').value = data.base;
+            document.getElementById('extraPrice').value = data.extra;
+        }
+        calculateTotal();
+    }
+
+    function calculateTotal() {
+        const start = parseFloat(document.getElementById('startCounter').value) || 0;
+        const end = parseFloat(document.getElementById('endCounter').value) || 0;
+        const base = parseFloat(document.getElementById('basePrice').value) || 0;
+        const extra = parseFloat(document.getElementById('extraPrice').value) || 0;
+        
+        const distance = end - start;
+        let total = 0;
+        
+        if (distance > 4000) {
+            total = (4000 * base) + ((distance - 4000) * extra);
+        } else {
+            total = distance * base;
+        }
+        document.getElementById('liveTotal').innerText = total.toLocaleString();
+    }
+
+    document.getElementById('tripForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        database.ref('trips/').push({
+            tripDate: document.getElementById('tripDate').value,
+            username: document.getElementById('username').value,
+            carNumber: document.getElementById('carNumber').value,
+            carType: document.getElementById('carType').value,
+            projectManager: document.getElementById('projectManager').value,
+            department: document.getElementById('department').value,
+            section: document.getElementById('sectionField').value,
+            location: document.getElementById('mainLocation').value,
+            distance: (parseFloat(document.getElementById('endCounter').value) - parseFloat(document.getElementById('startCounter').value)),
+            totalCost: document.getElementById('liveTotal').innerText
+        });
+        alert('تم الحفظ بنجاح!');
+        this.reset();
+    });
+
+    window.onload = () => { populateSelects(); handleCarChange(); };
+</script>
+</body>
+</html>

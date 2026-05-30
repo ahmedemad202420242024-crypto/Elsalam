@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة قاعدة البيانات - نظام السلام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root { --primary-color: #1B365D; --bg-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; display: flex; direction: rtl; }
+        .sidebar { width: 260px; background-color: var(--primary-color); color: white; min-height: 100vh; position: fixed; right: 0; top: 0; padding-top: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ecf0f1; text-decoration: none; font-size: 15px; }
+        .sidebar-menu li a i { margin-left: 10px; font-size: 18px; width: 25px; }
+        .sidebar-menu li.active a { background-color: rgba(255,255,255,0.1); border-right: 4px solid #f39c12; }
+        .main-content { margin-right: 260px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .db-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .db-box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .db-box h4 { margin-top: 0; border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; color: var(--primary-color); }
+        input, select, button { width: 100%; padding: 10px; margin-bottom: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: var(--primary-color); color: white; font-weight: bold; border: none; cursor: pointer; }
+        button.btn-del { background: #e74c3c; padding: 4px 8px; width: auto; font-size: 12px; margin: 0; }
+        .data-list { max-height: 180px; overflow-y: auto; border: 1px solid #eee; padding: 5px; list-style: none; margin: 0; }
+        .data-list li { display: flex; justify-content: space-between; align-items: center; padding: 6px; border-bottom: 1px solid #f9f9f9; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> لوحة التحكم</a></li>
+            <li class="active"><a href="database.html"><i class="fa-solid fa-database"></i> قاعدة البيانات</a></li>
+            <li><a href="pricing.html"><i class="fa-solid fa-tags"></i> شاشة التسعير</a></li>
+            <li><a href="trips.html"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+            <li><a href="queries.html"><i class="fa-solid fa-magnifying-glass"></i> بند الاستعلامات</a></li>
+            <li><a href="invoice.html"><i class="fa-solid fa-file-invoice-dollar"></i> الفواتير</a></li>
+            <li><a href="login.html" style="color: #e74c3c;"><i class="fa-solid fa-right-from-bracket"></i> خروج</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <h2>🗄️ لوحة التحكم بقواعد البيانات المتغيرة ونظام التشغيل</h2>
+        <div class="db-grid">
+            <div class="db-box">
+                <h4>🚗 إضافة سيارة جديدة</h4>
+                <input type="text" id="addCarNum" placeholder="رقم السيارة (مثل: 4352 ا و ي)">
+                <input type="text" id="addCarBrand" placeholder="ماركة ونوع السيارة">
+                <button onclick="saveItem('cars', {num: document.getElementById('addCarNum').value, brand: document.getElementById('addCarBrand').value})">حفظ السيارة</button>
+                <ul class="data-list" id="listCars"></ul>
+            </div>
+            <div class="db-box">
+                <h4>👔 إضافة مدير مشروع</h4>
+                <input type="text" id="addManager" placeholder="اسم مدير المشروع">
+                <button onclick="saveItem('managers', {name: document.getElementById('addManager').value})">حفظ المدير</button>
+                <ul class="data-list" id="listManagers"></ul>
+            </div>
+            <div class="db-box">
+                <h4>📍 إضافة موقع شركة</h4>
+                <input type="text" id="addLocation" placeholder="اسم الموقع">
+                <button onclick="saveItem('locations', {name: document.getElementById('addLocation').value})">حفظ الموقع</button>
+                <ul class="data-list" id="listLocations"></ul>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAf-xssfq1KrNKwLE5Nr88P6dIvs5Byz7c",
+        authDomain: "elsalam-system-2e469.firebaseapp.com",
+        databaseURL: "https://elsalam-system-2e469-default-rtdb.firebaseio.com",
+        projectId: "elsalam-system-2e469",
+        storageBucket: "elsalam-system-2e469.firebasestorage.app",
+        messagingSenderId: "422861890504",
+        appId: "1:422861890504:web:bad369e188f323bf7d56fd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    function saveItem(path, obj) {
+        if(!Object.values(obj)[0]) return alert('برجاء ملء البيانات أولاً!');
+        database.ref('custom_db/' + path).push(obj);
+        alert('تم الحفظ بنجاح لقاعدة البيانات الموحدة!');
+    }
+
+    function deleteItem(path, key) {
+        if(confirm('هل أنت متأكد من الحذف؟')) {
+            database.ref('custom_db/' + path + '/' + key).remove();
+        }
+    }
+
+    // مزامنة وعرض البيانات
+    database.ref('custom_db/cars').on('value', snap => {
+        const el = document.getElementById('listCars'); el.innerHTML = '';
+        snap.forEach(c => { el.innerHTML += `<li><span>${c.val().num} - ${c.val().brand}</span><button class="btn-del" onclick="deleteItem('cars','${c.key}')">حذف</button></li>`; });
+    });
+    database.ref('custom_db/managers').on('value', snap => {
+        const el = document.getElementById('listManagers'); el.innerHTML = '';
+        snap.forEach(m => { el.innerHTML += `<li><span>${m.val().name}</span><button class="btn-del" onclick="deleteItem('managers','${m.key}')">حذف</button></li>`; });
+    });
+    database.ref('custom_db/locations').on('value', snap => {
+        const el = document.getElementById('listLocations'); el.innerHTML = '';
+        snap.forEach(l => { el.innerHTML += `<li><span>${l.val().name}</span><button class="btn-del" onclick="deleteItem('locations','${l.key}')">حذف</button></li>`; });
+    });
+</script>
+</body>
+</html>
