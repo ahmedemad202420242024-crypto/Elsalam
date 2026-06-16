@@ -19,7 +19,7 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .form-group { display: flex; flex-direction: column; text-align: right; }
         label { margin-bottom: 5px; font-weight: bold; color: #333; }
-        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
         .btn { background: var(--primary-color); color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
@@ -46,15 +46,17 @@
                 <div class="form-grid">
                     <div class="form-group">
                         <label>رقم المركبة:</label>
-                        <select id="priceCarNum" required></select>
+                        <select id="priceCarNum" required>
+                            <option value="" disabled selected>اختر المركبة...</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>سعر كم الأساسي:</label>
-                        <input type="number" step="0.01" id="basePrice" required>
+                        <input type="number" step="0.001" id="basePrice" required>
                     </div>
                     <div class="form-group">
                         <label>سعر كم الزيادة:</label>
-                        <input type="number" step="0.01" id="extraPrice" required>
+                        <input type="number" step="0.001" id="extraPrice" required>
                     </div>
                     <div class="form-group">
                         <label>تاريخ بدء سريان التسعير الجديد:</label>
@@ -92,12 +94,121 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    // جلب قائمة العربيات من قاعدة البيانات لإدراجها في السيلكت
-    database.ref('custom_db/cars').on('value', snap => {
-        const select = document.getElementById('priceCarNum'); select.innerHTML = '';
-        snap.forEach(c => { select.innerHTML += `<option value="${c.val().num}">${c.val().num}</option>`; });
+    // قاعدة بيانات السيارات المفرقة المحدّثة وثابتة في الكود
+    const carDatabase = {
+        "ر ج ف 126": { type: "Daihatsu Terios", base: 2.5, extra: 3.5 },
+        "4247 ا د ر": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "1492 ا د ف": { type: "Renault - dokker", base: 4, extra: 5 },
+        "ا ب و 1392": { type: "Chevrolet - tfr", base: 4, extra: 5 },
+        "7696 ا س ب": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "س ف ق 9491": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "1497 ا د ف": { type: "Renault - dokker", base: 4, extra: 5 },
+        "أ د ف 1495": { type: "Renault - dokker", base: 4, extra: 5 },
+        "أ ط ص 2462": { type: "Nissan - sunny", base: 4, extra: 5 },
+        "3468 ك ر ا": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "9492 س ن ط": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "م ر 9226": { type: "Nissan - sunny", base: 4.25, extra: 5.25 },
+        "و ر ج 914": { type: "Fiat Tipo", base: 5, extra: 6 },
+        "3659 ك د ه": { type: "Nissan - centra", base: 5, extra: 6 },
+        "أ ص ي 3493": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "س أ م 5838": { type: "Citroen", base: 5, extra: 6 },
+        "س د ق 5828": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "321 ب ل ق": { type: "Nissan - centra", base: 5, extra: 6 },
+        "4128 ا س و": { type: "Suzuki - pickup.", base: 5, extra: 6 },
+        "5347 ا ب ل": { type: "Suzuki - pickup.", base: 5, extra: 6 },
+        "و د و 264": { type: "Toyota - Corolla", base: 5, extra: 6 },
+        "4923 ا ج ي": { type: "Suzuki - suzuki van..", base: 5, extra: 6 },
+        "578 ق ي ق": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "178 ن ع ي": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "5634 ا ر و": { type: "FIAT - doblo classic", base: 5.75, extra: 6.75 },
+        "1475 ا د ف": { type: "Renault - dokker", base: 5.75, extra: 6.75 },
+        "8694 ا ي ن": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "5932 ا ب و": { type: "Suzuki - pickup.", base: 5.75, extra: 6.75 },
+        "2751 ا ر ن": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "1549 ا ر م": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8739 ب ي ط": { type: "Isuzu - td", base: 6.9, extra: 7.9 },
+        "2656 ا ب ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7828 ج و ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "2629 ا ب ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "1765 ا ه ج": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "2987 ا س ف": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8748 ج ط ع": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "س س د 2684": { type: "Xpander", base: 6.9, extra: 7.9 },
+        "341 ط ج ب": { type: "Nissan - centra", base: 6.9, extra: 7.9 },
+        "8171 ج ط ع": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "ك ج ط 7298": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "576 د ج ق": { type: "Toyota - Corolla", base: 6.9, extra: 7.9 },
+        "ك د ع 6128": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "415 س ي د": { type: "Nissan - D22", base: 6.9, extra: 7.9 },
+        "4248 ا د ر": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "687 ل د ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7858 ا س ب": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "أ ر ل 4573": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "2781 ك ر ا": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "7315 ا ع ف": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "735 ق ن ق": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "9134 ا ب ص": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "791 ط ي د": { type: "Nissan - D22", base: 6.9, extra: 7.9 },
+        "7514 ا ق ي": { type: "Chevrolet - n300", base: 6.9, extra: 7.9 },
+        "7919 ج و ل": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "أ ب ل 2656": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "أ ب ل 2629": { type: "Nissan - sunny", base: 6.9, extra: 7.9 },
+        "8572 ب ر ا": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "6346 ا ج ف": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "8231 ا ص ا": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "1389 ا ب و": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "2679 ا ب و": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "7349 ا ف ق": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "6234 ا ف ق": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "أ ف و 2634": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "أ ه ف 2984": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "4156 ا ب و": { type: "Chevrolet - tfr 7000", base: 8.05, extra: 9.05 },
+        "ا ف ق 6234": { type: "Chevrolet - tfr", base: 8.05, extra: 9.05 },
+        "4956 ا ف ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "6948 ا ف ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "8725 ا ه ق": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "3749 ا و ي": { type: "Toyota - hiace", base: 8.625, extra: 9.625 },
+        "4179 ا ص ا": { type: "Nissan - Nissan Pickup", base: 8.625, extra: 9.625 },
+        "4358 ا ف و": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "9568 ا و ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "6149 ا ي ل": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "2356 ا m ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "196 ق ل ب": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "967 ه ج د": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "أ ي ل 6149": { type: "Toyota - Hilux", base: 8.625, extra: 9.625 },
+        "7452 ا ف ا": { type: "Citroen", base: 11.5, extra: 12.5 },
+        "4746 س د ق": { type: "Toyota - rush", base: 11.5, extra: 12.5 },
+        "أ ف أ 8519": { type: "Citroen", base: 11.5, extra: 12.5 },
+        "146 ن ج ه": { type: "Peugeot - 5008", base: 11.5, extra: 12.5 },
+        "6983 ك د ف": { type: "Kia - sportage", base: 11.5, extra: 12.5 },
+        "7487 س ه ن": { type: "Kia - sportage", base: 11.5, extra: 12.5 },
+        "592 ن م د": { type: "Toyota - hiace", base: 17.25, extra: 19.25 },
+        "3751 ا و ي": { type: "Toyota - hiace 1", base: 17.25, extra: 19.25 },
+        "7819 ا ج و": { type: "Chevrolet - jambo7000", base: 20, extra: 23 },
+        "4352 ا و ي": { type: "Toyota - COASTER", base: 34.5, extra: 38.5 }
+    };
+
+    // تعبئة قائمة المركبات المنسدلة من البيانات الثابتة فوراً عند فتح الصفحة
+    const select = document.getElementById('priceCarNum');
+    Object.keys(carDatabase).forEach(carNum => {
+        const carInfo = carDatabase[carNum];
+        select.innerHTML += `<option value="${carNum}">${carNum} (${carInfo.type})</option>`;
     });
 
+    // ميزة ذكية: عند اختيار المركبة يتم ملء الحقول تلقائياً بأسعارها الافتراضية
+    select.addEventListener('change', function() {
+        const selectedCar = this.value;
+        if(carDatabase[selectedCar]) {
+            document.getElementById('basePrice').value = carDatabase[selectedCar].base;
+            document.getElementById('extraPrice').value = carDatabase[selectedCar].extra;
+            
+            // تعيين تاريخ اليوم كخيار افتراضي لتسهيل الإدخال
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('pricingStartDate').value = today;
+        }
+    });
+
+    // حفظ وتحديث خطة الأسعار بالسيرفر أونلاين
     document.getElementById('pricingForm').addEventListener('submit', function(e){
         e.preventDefault();
         database.ref('pricing/').push({
@@ -107,9 +218,10 @@
             startDate: document.getElementById('pricingStartDate').value
         });
         document.getElementById('pricingForm').reset();
-        alert('تم حفظ التسعير الجديد بنجاح!');
+        alert('تم حفظ وتحديث التسعير الجديد بنجاح على السيرفر! 💾');
     });
 
+    // جلب وعرض جدول الأسعار الفعالة أونلاين من السيرفر مباشرة
     database.ref('pricing/').on('value', function(snapshot){
         const tbody = document.getElementById('pricingTableBody'); tbody.innerHTML = '';
         snapshot.forEach(function(child){
