@@ -189,11 +189,11 @@
             return;
         }
 
-        // إخفاء عناصر الملخص بأمان كامل لمنع التعليق الحاصل بالصورة القديمة
+        // إخفاء عناصر الملخص بأمان كامل لمنع التعليق
         if(document.getElementById('primaryUserInfoCard')) document.getElementById('primaryUserInfoCard').style.display = "none";
         if(document.getElementById('odometerSummaryBox')) document.getElementById('odometerSummaryBox').style.display = "none";
 
-        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بناء على تقاطع وتداخل التواريخ الذكي
+        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بناء على تقاطع وتداخل التواريخ
         database.ref('car_primary_users/').once('value', snapshot => {
             let userFound = null;
             
@@ -201,7 +201,7 @@
                 const uData = child.val();
                 const dbCar = uData.carNumber || uData.carNum;
                 
-                // تم تعديل الشرط هنا ليفحص تداخل المدة (Overlap) بشكل صحيح بدلاً من التطابق المطلق والمقيد
+                // فحص دقيق للتداخل والتوافق
                 if(dbCar === carNum && uData.fromDate <= toDate && uData.toDate >= fromDate) {
                     userFound = uData;
                     return true; // كسر الـ Loop فوراً عند إيجاد السجل الصحيح المتداخل
@@ -230,7 +230,6 @@
                     const rec = cKm.val();
                     const dbCarKm = rec.carNumber || rec.carNum;
                     
-                    // تم تعديل الشرط هنا أيضاً ليدعم مرونة فحص التواريخ المتداخلة
                     if(dbCarKm === carNum && rec.fromDate <= toDate && rec.toDate >= fromDate) {
                         registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
                         return true; 
