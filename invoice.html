@@ -62,7 +62,7 @@
 </head>
 <body>
 
-   <div class="sidebar">
+    <div class="sidebar">
         <div class="sidebar-brand">🚚 منظومة حركة السيارات</div>
         <ul class="sidebar-menu">
             <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> لوحة التحكم</a></li>
@@ -145,7 +145,7 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    // 2. قاعدة بيانات المركبات المدمجة بالنظام للتهيئة السريعة
+    // 2. قاعدة بيانات المركبات المدمجة بالنظام
     const carDatabase = {
         "ر ج ف 126": "Daihatsu Terios", "4247 ا د ر": "Nissan - sunny", "1492 ا د ف": "Renault - dokker", "ا ب و 1392": "Chevrolet - tfr",
         "7696 ا س ب": "Nissan - sunny", "س ف ق 9491": "Nissan - sunny", "1497 ا د ف": "Renault - dokker", "أ د ف 1495": "Renault - dokker",
@@ -189,9 +189,9 @@
             return;
         }
 
-        // إخفاء عناصر الملخص تمهيداً للتحديث المباشر الجديد
-        document.getElementById('primaryUserInfoCard').style.display = "none";
-        document.getElementById('odometerSummaryBox').style.display = "none";
+        // إخفاء عناصر الملخص بأمان كامل
+        if(document.getElementById('primaryUserInfoCard')) document.getElementById('primaryUserInfoCard').style.display = "none";
+        if(document.getElementById('odometerSummaryBox')) document.getElementById('odometerSummaryBox').style.display = "none";
 
         // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بشكل متزامن دقيق
         database.ref('car_primary_users/').once('value', snapshot => {
@@ -201,10 +201,10 @@
                 const uData = child.val();
                 const dbCar = uData.carNumber || uData.carNum;
                 
-                // التحقق من تطابق السيارة ووقوع الفلتر بداخل المدة المخصصة للمستخدم
+                // التحقق من تطابق السيارة وتداخل الفترات الزمنية
                 if(dbCar === carNum && uData.fromDate <= fromDate && uData.toDate >= toDate) {
                     userFound = uData;
-                    return true; // إيقاف الـ Loop فوراً لمنع التداخل أو قراءات عشوائية أخرى
+                    return true; // إيقاف الـ Loop فوراً بمجرد إيجاد التطابق لمنع تداخل وقراءات عشوائية
                 }
             });
 
@@ -229,10 +229,9 @@
                 snapKm.forEach(cKm => {
                     const rec = cKm.val();
                     const dbCarKm = rec.carNumber || rec.carNum;
-                    
                     if(dbCarKm === carNum && rec.fromDate <= fromDate && rec.toDate >= toDate) {
                         registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
-                        return true; // كسر الدوران بمجرد إيجاد تطابق العداد
+                        return true; 
                     }
                 });
                 
