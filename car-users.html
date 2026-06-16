@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>مستخدمي السيارات الأساسيين - نظام السلام</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; script-src * 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com; style-src * 'unsafe-inline' https://cdnjs.cloudflare.com; font-src * data: https://cdnjs.cloudflare.com;">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -21,8 +22,8 @@
         label { margin-bottom: 5px; font-weight: bold; color: #333; }
         input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
         .btn { background: var(--primary-color); color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-top: 20px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 13px; }
         th { background-color: var(--primary-color); color: white; }
         .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
     </style>
@@ -44,7 +45,7 @@
 
     <div class="main-content">
         <div class="container">
-            <h3>👤 شاشة مستخدم السيارات الأساسي</h3>
+            <h3>👤 شاشة مستخدم السيارات الأساسي - شركة السلام</h3>
             <form id="carUserForm">
                 <div class="form-grid">
                     <div class="form-group">
@@ -85,22 +86,24 @@
         </div>
 
         <h3>📋 سجل التخصيصات الأساسية للمركبات</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>رقم المركبة</th>
-                    <th>المستخدم الأساسي</th>
-                    <th>مدير المشروع</th>
-                    <th>القسم</th>
-                    <th>الإدارة</th>
-                    <th>الموقع</th>
-                    <th>من تاريخ</th>
-                    <th>إلى تاريخ</th>
-                    <th>إجراءات</th>
-                </tr>
-            </thead>
-            <tbody id="carUsersTableBody"></tbody>
-        </table>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>رقم المركبة</th>
+                        <th>المستخدم الأساسي</th>
+                        <th>مدير المشروع</th>
+                        <th>القسم</th>
+                        <th>الإدارة</th>
+                        <th>الموقع</th>
+                        <th>من تاريخ</th>
+                        <th>إلى تاريخ</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="carUsersTableBody"></tbody>
+            </table>
+        </div>
     </div>
 
 <script>
@@ -142,31 +145,28 @@
         "7819 ا ج و": "Chevrolet - jambo7000", "4352 ا و ي": "Toyota - COASTER"
     };
 
-    // 1. تعبئة قائمة السيارات
+    const managers = ["اداريات جيش", "الحج علي", "أ / ابراهيم عرفة", "أ / احمد سعيد", "أ / احمد يحيي", "أ / طارق بكر", "أ / اسامه السلموني", "أ / محمد عبد الواحد", "أ / ايهاب رياض", "أ / بركة", "أ / بلال التركي", "أ / حسين فضل الله", "أ / خالد محمود", "أ / طارق ايمن", "أ / عمار", "أ / محمد شبانة", "أ / محمد عرفة", "أ / هيثم موسي", "أ / ياسر السلموني", "م / احمد العربي", "أ / يحيي عادل", "خدمات عامة", "م / احمد وهدان", "م / اسلام عطية", "م / سامح السعيد", "م / شريف", "م / عبد الحميد سامي", "م / عبد الحميد عبد الفتاح", "م / عبد الله محمد", "م / مايكل", "م / محمد حمدي", "م / محمد خيري", "م / محمد ربيع", "م / احمد عبد المعز", "م / محمد عبد الحكم", "م / محمد عمارة", "م / محمود الشورباجي"];
+    const departments = ["الادارة الهندسية", "ادارة العليا", "المشتريات العامة", "المشتريات قطع الغيار", "الانتاج - كريتال", "الادارة المالية", "ادارة الحركة و النقل", "ادارة المخازن", "ادارة عمليات الموارد البشريه", "ادارة الامن", "الانتاج - النجارة", "الانتاج - الالموتال", "النظم و المعلومات", "المشتريات المتخصصة", "ادارة الشؤون القانونية", "نقل ثقيل و المعدات", "اسكندرية", "خدمات عامة", "اللوجيستي"];
+    const sections = ["ادارة الهندسية", "ادارة العليا", "مشتريات العامة", "السقالات", "مشتريات قطع الغيار", "صيانة", "كريتال", "الخزينة", "قسم نقل الخفيف", "المخازن", "ادارة الموارد البشرية", "ادارة الامن", "مصنع النجارة", "الالموتال", "قسم الالموتال", "نظم و المعلومات", "التصوير", "المشتريات المتخصصة", "ادارة المالية", "المقاولين", "مدني الكيان", "مدني", "العمارة الجديدة - التجمع - نيو جيزا", "الشؤون القانونية", "حركة المعدات", "كهرباء", "المعدات - كهرباء", "اسكندرية", "خدمات عامة", "مدير المشروعات", "مكتب الفني - كهرباء", "تنفيذ", "ميكانيكا", "مكتب الفني"];
+    const sites = ["الهيئه", "العاصمه - اكتوبر", "المعصره", "المقر", "One time vendor general purchasing", "قباء فاستتترز للعدد والادوات العموميه", "الجيوشى لتجاره العدد والالات", "محمد سامى عبدالستار حجازى", "شركه الصقر لمعدات البناء", "محمود محمد الحفنى على", "الشركه الدوليه لتكنولوجيا العزل انسوتك", "مجاهد صدقي نصار وشريكة", "طيبه لتشغيل وتشكيل المعادن", "مؤسسه اطياف ايجيبت للمقاولات والتوريدات العموميه", "علاء الدين السيد سلمى", "القادسيه للصناعات الهندسيه", "المكه للتوريدات العموميه", "نقل داخلي", "خالد احمد عبدالموجود", "شركة الالمانية لكيماويات البناء الحديث", "مودرن كونستراكشن للتعمير", "شافعى للتوريدات الصناعيه وشركاه", "جراج المستشار", "كريتال", "حديد شبك", "الواحة", "جميع مواقع الكيان", "Oil For Miles", "بلبيس", "دهانات", "مستلزمات سكنية", "بوفيه", "إدوات مكتبيه", "مستلزمات بوفية", "الواح كونتر", "بلايا", "نيو كايرو", "جميع مواقع الشركة", "مصنع النجارة", "مصنع رقم ( 2 ) الاسكندرية", "شركه السلام لتجاره الالمونيوم", "التمساح لتجاره قطاعات الالمومنيوم والاكسسوار", "مصنع رقم ( 1 ) الاسكندرية", "مصنع اشراقة للسلك الالمونيوم", "مركز ماكينات ومستلزمات الالومنيوم", "الامير لاكسسوارات الالمومنيوم", "الدوليه 21 لانتاج قطاعات الالمومنيوم الملونه", "مصنع رقم ( 6 ) الاسكندرية", "مركز ماكينات ومستلزمات الالومنيوم (اكسسوارات)", "مصانع الالموتال", "ار 2", "مصنع الالموتال 1 ؛ 2 ؛ 3 + الزجاج", "الجيزه لتصنيع مستلزمات الكابلات", "محمد احمد جمعه احمد", "جولدن لايت للتوريدات العمومية", "سمارت هوم ابراهيم خيرى سعيد ابراهيم وشركاه", "ايجي تك للحلول الفنية", "تكنو ماستر وجدى صبحى منير رزق", "شركه ثرى برازرز للصناعات الهندسيه والكهربيه", "المصريه الالمانيه لصناعه المواسير الحديثه", "الجمهوريه للتجاره والصناعه", "الندي للتكييف والصناعات الهندسيه", "بيتا اليكتريك كابلز", "سعيد سويلم سعيد احمد نيوايجا للصناعات الكهربائيه", "الشركة العالميه للمسبوكات والصناعات المتطوره", "الشحنه الكهربائية للكابلات المتخصصة", "العربيه للصناعات الانشائيه فيتو بلاست", "داكت ماستر", "شركه تل الزهور الصناعيه لمنتجات البلاستيك", "الفاتورو للتوريدات العموميه والمقاولات", "كيميكو", "الالمانية للتجاره والتوريدات صبحى ربيع جاب الله", "العالمين", "العمارة الجديدة", "العمارة الجديدة - التجمع", "العمارة الجديدة - التجمع - نيو جيزا", "كرتونة ورق", "خزنات حديد", "مسامير", "اداوات مكافحة حريق", "خزان بلاستيك", "مواسير", "لفات سلك فيبر المونيوم", "مفاتيح & انارة", "كابلات", "بسكويت خرسانه", "وصلات", "سيراميك", "أسمنت", "عزل حراري", "بودرة", "اسكندرية", "خدمات عامة", "العالمين + بلايا + سنجور + اليابانية", "سنجور و اليابانية", "الرماية", "مصانع اسكندرية + العالمين", "المعاهد العسكرية", "المعرفة", "جاردنيا", "المعرفة - نيو كايروا - بورسعيد - الواحة - جاردنيا - العاصمة", "بوسعيد", "الضبعة", "الضبعة + اكتوبر", "اكتوبر", "المولات - ال700", "استشاري موقع 700 فيلا", "نادي الشمس", "الاسمرات", "الاسمرات + نيو جيزا", "نيو جيزه", "استشاري موقع الرماية", "جميع مواقع القاهرة", "بلايا + العالمين", "شيراتون"];
+
+    // 1. تعبئة القوائم المنسدلة من المصفوفات الثابتة
     const carSelect = document.getElementById('carNumSelect');
-    Object.keys(carDatabase).forEach(num => {
-        carSelect.innerHTML += `<option value="${num}">${num}</option>`;
-    });
+    Object.keys(carDatabase).forEach(num => { carSelect.innerHTML += `<option value="${num}">${num}</option>`; });
 
-    // 2. جلب القوائم المنسدلة ديناميكياً من فرع custom_db
-    database.ref('custom_db/managers').on('value', snap => {
-        const select = document.getElementById('projectManagerSelect'); select.innerHTML = '<option value="">اختر مدير المشروع...</option>';
-        snap.forEach(c => { select.innerHTML += `<option value="${c.val().name}">${c.val().name}</option>`; });
-    });
-    database.ref('custom_db/departments').on('value', snap => {
-        const select = document.getElementById('departmentSelect'); select.innerHTML = '<option value="">اختر القسم...</option>';
-        snap.forEach(c => { select.innerHTML += `<option value="${c.val().name}">${c.val().name}</option>`; });
-    });
-    database.ref('custom_db/administrations').on('value', snap => {
-        const select = document.getElementById('adminSelect'); select.innerHTML = '<option value="">اختر الإدارة...</option>';
-        snap.forEach(c => { select.innerHTML += `<option value="${c.val().name}">${c.val().name}</option>`; });
-    });
-    database.ref('custom_db/locations').on('value', snap => {
-        const select = document.getElementById('locationSelect'); select.innerHTML = '<option value="">اختر الموقع...</option>';
-        snap.forEach(c => { select.innerHTML += `<option value="${c.val().name}">${c.val().name}</option>`; });
-    });
+    const managerSelect = document.getElementById('projectManagerSelect');
+    managers.forEach(m => { managerSelect.innerHTML += `<option value="${m}">${m}</option>`; });
 
-    // 3. حفظ بيانات التخصيص الأساسية
+    const deptSelect = document.getElementById('departmentSelect');
+    departments.forEach(d => { deptSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+
+    const adminSelect = document.getElementById('adminSelect');
+    sections.forEach(s => { adminSelect.innerHTML += `<option value="${s}">${s}</option>`; });
+
+    const locationSelect = document.getElementById('locationSelect');
+    sites.forEach(st => { locationSelect.innerHTML += `<option value="${st}">${st}</option>`; });
+
+    // 2. حفظ البيانات داخل Firebase
     document.getElementById('carUserForm').addEventListener('submit', function(e){
         e.preventDefault();
         database.ref('car_primary_users/').push({
@@ -180,16 +180,16 @@
             toDate: document.getElementById('toDate').value
         });
         this.reset();
-        alert('تم حفظ البيانات وتخصيص السيارة بنجاح!');
+        alert('تم حفظ البيانات وتخصيص مستخدم السيارة بنجاح! 🎉');
     });
 
-    // 4. استعراض الجدول المباشر
+    // 3. عرض السجل بجدول ديناميكي مباشر من Firebase
     database.ref('car_primary_users/').on('value', snapshot => {
         const tbody = document.getElementById('carUsersTableBody'); tbody.innerHTML = '';
         snapshot.forEach(child => {
             const val = child.val();
             tbody.innerHTML += `<tr>
-                <td>${val.carNumber}</td>
+                <td><b>${val.carNumber}</b></td>
                 <td>${val.mainUser}</td>
                 <td>${val.projectManager}</td>
                 <td>${val.department}</td>
@@ -197,13 +197,13 @@
                 <td>${val.location}</td>
                 <td>${val.fromDate}</td>
                 <td>${val.toDate}</td>
-                <td><button class="btn-delete" onclick="deleteRecord('${child.key}')">حذف</button></td>
+                <td><button class="btn-delete" onclick="deleteRecord('${child.key}')"><i class="fa-solid fa-trash"></i> حذف</button></td>
             </tr>`;
         });
     });
 
     function deleteRecord(key) {
-        if(confirm('هل تريد حذف هذا التخصيص؟')) {
+        if(confirm('هل أنت متأكد من حذف هذا التخصيص للمركبة؟')) {
             database.ref('car_primary_users/' + key).remove();
         }
     }
