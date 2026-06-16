@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>نظام السلام - استخراج الفاتورة الرسمية</title>
-    
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * https://*.firebaseio.com https://*.googleapis.com wss://*.firebaseio.com; script-src * 'unsafe-inline' 'unsafe-eval' https://www.gstatic.com; style-src * 'unsafe-inline' https://cdnjs.cloudflare.com; font-src * data: https://cdnjs.cloudflare.com;">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -25,12 +23,17 @@
         input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
         .btn-search { background: #2ecc71; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; width: 100%; }
         .btn-print { background: #34495e; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; margin-top: 10px; }
+        
+        /* ترويسة البيانات الأساسية للمستخدم والسيارة */
+        .info-card { background: #fff; border-right: 5px solid #2980b9; padding: 15px; border-radius: 4px; margin-bottom: 20px; display: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 14px; color: #2c3e50; }
+        
         table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; }
         th, td { padding: 10px; border: 1px solid #ddd; text-align: center; font-size: 14px; }
         th { background-color: var(--primary-color); color: white; }
         .total-row { background-color: #f1c40f; font-weight: bold; }
         .summary-box { background: #e8f4fd; border: 1px solid #bce0fd; padding: 15px; border-radius: 6px; margin-top: 20px; font-size: 16px; font-weight: bold; color: var(--primary-color); display: none; }
-        @media print { .sidebar, .container, .btn-print { display: none !important; } .main-content { margin-right: 0 !important; padding: 0 !important; } body { background: white; } .summary-box { display: block !important; } }
+        @media print { .sidebar, .container, .btn-print { display: none !important; } .main-content { margin-right: 0 !important; padding: 0 !important; } body { background: white; } .summary-box, .info-card { display: block !important; } }
     </style>
 </head>
 <body>
@@ -40,6 +43,7 @@
             <li><a href="database.html"><i class="fa-solid fa-database"></i> قاعدة البيانات</a></li>
             <li><a href="pricing.html"><i class="fa-solid fa-tags"></i> شاشة التسعير</a></li>
             <li><a href="trips.html"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+            <li><a href="car-users.html"><i class="fa-solid fa-user-gear"></i> مستخدم السيارات الأساسي</a></li>
             <li><a href="odometer.html"><i class="fa-solid fa-gauge"></i> تسجيل عداد المركبات</a></li>
             <li><a href="queries.html"><i class="fa-solid fa-magnifying-glass"></i> بند الاستعلامات</a></li>
             <li class="active"><a href="invoice.html"><i class="fa-solid fa-file-invoice-dollar"></i> الفواتير</a></li>
@@ -68,6 +72,11 @@
             </div>
             <button class="btn-search" onclick="generateInvoiceReport()">استعراض وتجميع بيانات الفاتورة 🔍</button>
             <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> طباعة الفاتورة الشاملة</button>
+        </div>
+
+        <div id="primaryUserInfoCard" class="info-card">
+            <h4>📋 البيانات الأساسية للمركبة والمستخدم المستفيد:</h4>
+            <div class="info-grid" id="infoGridData"></div>
         </div>
 
         <div id="odometerSummaryBox" class="summary-box"></div>
@@ -123,7 +132,7 @@
         "أ ف و 2634": "Chevrolet - tfr", "أ ه ف 2984": "Chevrolet - tfr", "4156 ا ب و": "Chevrolet - tfr 7000", "ا ف ق 6234": "Chevrolet - tfr",
         "4956 ا ف ق": "Toyota - Hilux", "6948 ا ف ق": "Toyota - Hilux", "8725 ا ه ق": "Toyota - Hilux", "3749 ا و ي": "Toyota - hiace",
         "4179 ا ص ا": "Nissan - Nissan Pickup", "4358 ا ف و": "Toyota - Hilux", "9568 ا و ب": "Toyota - Hilux", "6149 ا ي ل": "Toyota - Hilux",
-        "2356 ا م ب": "Toyota - Hilux", "196 ق ل ب": "Toyota - Hilux", "967 ه ج د": "Toyota - Hilux", "أ ي ل 6149": "Toyota - Hilux",
+        "2356 ا m ب": "Toyota - Hilux", "196 ق ل ب": "Toyota - Hilux", "967 ه ج د": "Toyota - Hilux", "أ ي ل 6149": "Toyota - Hilux",
         "7452 ا ف ا": "Citroen", "4746 س د ق": "Toyota - rush", "أ ف أ 8519": "Citroen", "146 ن ج ه": "Peugeot - 5008",
         "6983 ك د ف": "Kia - sportage", "7487 س ه ن": "Kia - sportage", "592 ن م د": "Toyota - hiace", "3751 ا و ي": "Toyota - hiace 1",
         "7819 ا ج و": "Chevrolet - jambo7000", "4352 ا و ي": "Toyota - COASTER"
@@ -139,26 +148,49 @@
         const fromDate = document.getElementById('searchFromDate').value;
         const toDate = document.getElementById('searchToDate').value;
 
+        document.getElementById('primaryUserInfoCard').style.display = "none";
         const summaryBox = document.getElementById('odometerSummaryBox');
         summaryBox.style.display = "none";
-        summaryBox.innerHTML = "";
 
         if(!fromDate || !toDate) {
-            alert("يرجى تحديد فترة التاريخ (من وإلى) أولاً!");
+            alert("يرجى تحديد فترة التاريخ أولاً!");
             return;
         }
 
-        let registeredKm = 0;
-        
+        // جلب بيانات مستخدم السيارة الأساسي للفترة المحددة
         if(carNum) {
-            database.ref('vehicle_km_records/').orderByChild('carNumber').equalTo(carNum).once('value', snapshot => {
+            database.ref('car_primary_users/').orderByChild('carNumber').equalTo(carNum).once('value', snapshot => {
+                let userFound = null;
                 snapshot.forEach(child => {
-                    const rec = child.val();
-                    if(rec.fromDate >= fromDate && rec.toDate <= toDate) {
-                        registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
+                    const uData = child.val();
+                    if(fromDate >= uData.fromDate && toDate <= uData.toDate) {
+                        userFound = uData;
                     }
                 });
-                fetchTripsAndCalculate(carNum, fromDate, toDate, registeredKm);
+
+                if(userFound) {
+                    document.getElementById('primaryUserInfoCard').style.display = "block";
+                    document.getElementById('infoGridData').innerHTML = `
+                        <div><b>👤 المستخدم الأساسي:</b> ${userFound.mainUser}</div>
+                        <div><b>💼 مدير المشروع:</b> ${userFound.projectManager}</div>
+                        <div><b>🏢 القسم:</b> ${userFound.department}</div>
+                        <div><b>⚙️ الإدارة:</b> ${userFound.administration}</div>
+                        <div><b>📍 الموقع الأساسي:</b> ${userFound.location}</div>
+                        <div><b>📅 الفترة التخصيصية:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
+                    `;
+                }
+
+                // جلب العداد الإجمالي للمركبة
+                let registeredKm = 0;
+                database.ref('vehicle_km_records/').orderByChild('carNumber').equalTo(carNum).once('value', snapKm => {
+                    snapKm.forEach(cKm => {
+                        const rec = cKm.val();
+                        if(rec.fromDate >= fromDate && rec.toDate <= toDate) {
+                            registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
+                        }
+                    });
+                    fetchTripsAndCalculate(carNum, fromDate, toDate, registeredKm);
+                });
             });
         } else {
             fetchTripsAndCalculate(carNum, fromDate, toDate, 0);
@@ -187,9 +219,7 @@
                     const km = parseFloat(trip.distance) || 0;
                     
                     let rawCost = trip.totalCost;
-                    if(typeof rawCost === 'string') {
-                        rawCost = rawCost.replace(/,/g, '');
-                    }
+                    if(typeof rawCost === 'string') rawCost = rawCost.replace(/,/g, '');
                     const cost = parseFloat(rawCost) || 0;
 
                     totalTripsKm += km;
@@ -210,18 +240,19 @@
             });
 
             if (!recordsFound) {
-                tbody.innerHTML = `<tr><td colspan="7" style="color:#e74c3c; padding: 20px;">لا توجد تحركات مسجلة تطابق هذه الاختيارات خلال الفترة المحددة.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="color:#e74c3c; padding: 20px;">لا توجد تحركات مسجلة.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML += `
                 <tr class="total-row">
-                    <td colspan="5" style="text-align: left; padding-left: 20px;">الإجمالي العام النهائي للمشاوير:</td>
+                    <td colspan="5" style="text-align: left; padding-left: 20px;">إجمالي مشاوير المنظومة للفترة:</td>
                     <td>${totalTripsKm} كم</td>
                     <td>${grandTotalCost.toFixed(2)} ج.م</td>
                 </tr>
             `;
 
+            // إجراء الطرح التلقائي (العداد الكلي المدخل - مجموع كيلومترات مشاوير الفواتير المسجلة)
             if(carNum && registeredKm > 0) {
                 const finalRemainingKm = registeredKm - totalTripsKm;
                 const summaryBox = document.getElementById('odometerSummaryBox');
@@ -229,9 +260,9 @@
                 summaryBox.innerHTML = `
                     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                         <span>🚗 السيارة: ${carNum}</span>
-                        <span>📊 العداد الإجمالي المسجل: ${registeredKm} كم</span>
+                        <span>📊 العداد الإجمالي المسجل للشاشة: ${registeredKm} كم</span>
                         <span>📉 إجمالي مشاوير المنظومة: ${totalTripsKm} كم</span>
-                        <span style="color:#d35400;">🏁 الكيلومتر المتبقي النهائي للسيارة: ${finalRemainingKm.toFixed(2)} كم</span>
+                        <span style="color:#d35400; font-size:17px;">🏁 الكيلومتر المتبقي النهائي للسيارة: ${finalRemainingKm.toFixed(2)} كم</span>
                     </div>
                 `;
             }
