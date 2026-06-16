@@ -189,11 +189,11 @@
             return;
         }
 
-        // إخفاء عناصر الملخص بأمان كامل
+        // إخفاء عناصر الملخص بأمان كامل لمنع التعليق الحاصل بالصورة القديمة
         if(document.getElementById('primaryUserInfoCard')) document.getElementById('primaryUserInfoCard').style.display = "none";
         if(document.getElementById('odometerSummaryBox')) document.getElementById('odometerSummaryBox').style.display = "none";
 
-        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بشكل متزامن دقيق
+        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بناء على تقاطع وتداخل التواريخ الذكي
         database.ref('car_primary_users/').once('value', snapshot => {
             let userFound = null;
             
@@ -201,10 +201,10 @@
                 const uData = child.val();
                 const dbCar = uData.carNumber || uData.carNum;
                 
-                // التحقق من تطابق السيارة وتداخل الفترات الزمنية
-                if(dbCar === carNum && uData.fromDate <= fromDate && uData.toDate >= toDate) {
+                // تم تعديل الشرط هنا ليفحص تداخل المدة (Overlap) بشكل صحيح بدلاً من التطابق المطلق والمقيد
+                if(dbCar === carNum && uData.fromDate <= toDate && uData.toDate >= fromDate) {
                     userFound = uData;
-                    return true; // إيقاف الـ Loop فوراً بمجرد إيجاد التطابق لمنع تداخل وقراءات عشوائية
+                    return true; // كسر الـ Loop فوراً عند إيجاد السجل الصحيح المتداخل
                 }
             });
 
@@ -216,20 +216,22 @@
                     <div class="info-item"><b>🏢 القسم:</b> ${userFound.department || '-'}</div>
                     <div class="info-item"><b>⚙️ الإدارة:</b> ${userFound.administration || userFound.section || '-'}</div>
                     <div class="info-item"><b>📍 الموقع الأساسي:</b> ${userFound.location || userFound.site || '-'}</div>
-                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
+                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص بالسيستم:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
                 `;
             } else {
                 document.getElementById('primaryUserInfoCard').style.display = "block";
-                document.getElementById('infoGridData').innerHTML = `<div style="color: #e74c3c; grid-column: 1/-1; text-align: center; font-weight: bold;">⚠️ لم يتم تسجيل مستخدم أساسي ثابت لهذه السيارة خلال هذه الفترة المحددة بشاشة التخصيص.</div>`;
+                document.getElementById('infoGridData').innerHTML = `<div style="color: #e74c3c; grid-column: 1/-1; text-align: center; font-weight: bold;">⚠️ لم يتم تسجيل مستخدم أساسي ثابت لهذه السيارة خلال الفترة المحددة بالفاتورة.</div>`;
             }
 
-            // الخطوة 2: جلب إجمالي العداد الفعلي المدخل من شاشة عداد المركبات
+            // الخطوة 2: جلب إجمالي العداد الفعلي بناء على تداخل التاريخ الذكي أيضاً
             let registeredKm = 0;
             database.ref('vehicle_km_records/').once('value', snapKm => {
                 snapKm.forEach(cKm => {
                     const rec = cKm.val();
                     const dbCarKm = rec.carNumber || rec.carNum;
-                    if(dbCarKm === carNum && rec.fromDate <= fromDate && rec.toDate >= toDate) {
+                    
+                    // تم تعديل الشرط هنا أيضاً ليدعم مرونة فحص التواريخ المتداخلة
+                    if(dbCarKm === carNum && rec.fromDate <= toDate && rec.toDate >= fromDate) {
                         registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
                         return true; 
                     }
@@ -257,6 +259,7 @@
                 const tDate = trip.tripDate || trip.date;
                 const dbCar = trip.carNumber || trip.carNum;
 
+                // فلترة مشاوير السيارة التي تقع تماماً بين تاريخين الفاتورة المطلوبة
                 if (dbCar === carNum && tDate >= fromDate && tDate <= toDate) {
                     recordsFound = true;
                     const km = parseFloat(trip.distance) || parseFloat(trip.km) || 0;
