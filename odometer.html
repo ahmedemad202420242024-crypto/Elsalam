@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تسجيل عداد المركبات - نظام السلام</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root { --primary-color: #1B365D; --bg-color: #f0f4f8; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); margin: 0; padding: 0; display: flex; direction: rtl; }
+        .sidebar { width: 260px; background-color: var(--primary-color); color: white; min-height: 100vh; position: fixed; right: 0; top: 0; padding-top: 20px; }
+        .sidebar-menu { list-style: none; padding: 0; margin: 20px 0; }
+        .sidebar-menu li a { display: flex; align-items: center; padding: 15px 20px; color: #ecf0f1; text-decoration: none; font-size: 15px; }
+        .sidebar-menu li a i { margin-left: 10px; font-size: 18px; width: 25px; }
+        .sidebar-menu li.active a { background-color: rgba(255,255,255,0.1); border-right: 4px solid #f39c12; }
+        .main-content { margin-right: 260px; padding: 30px; width: 100%; box-sizing: border-box; }
+        .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; text-align: right; }
+        label { margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, select { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; }
+        .btn { background: var(--primary-color); color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: var(--primary-color); color: white; }
+        .btn-delete { background-color: #e74c3c; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> لوحة التحكم</a></li>
+            <li><a href="database.html"><i class="fa-solid fa-database"></i> قاعدة البيانات</a></li>
+            <li><a href="pricing.html"><i class="fa-solid fa-tags"></i> شاشة التسعير</a></li>
+            <li><a href="trips.html"><i class="fa-solid fa-route"></i> المشاوير</a></li>
+            <li class="active"><a href="odometer.html"><i class="fa-solid fa-gauge"></i> تسجيل عداد المركبات</a></li>
+            <li><a href="queries.html"><i class="fa-solid fa-magnifying-glass"></i> بند الاستعلامات</a></li>
+            <li><a href="invoice.html"><i class="fa-solid fa-file-invoice-dollar"></i> الفواتير</a></li>
+            <li><a href="login.html" style="color: #e74c3c;"><i class="fa-solid fa-right-from-bracket"></i> خروج</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h3>📝 تسجيل قراءة العداد الإجمالي للمركبة</h3>
+            <form id="odometerForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>رقم المركبة:</label>
+                        <select id="carNumberSelect" required>
+                            <option value="" disabled selected>اختر المركبة...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>من تاريخ:</label>
+                        <input type="date" id="fromDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>إلى تاريخ:</label>
+                        <input type="date" id="toDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>إجمالي الكيلومتر المسجل بالمركبة:</label>
+                        <input type="number" step="0.01" id="totalKmInput" placeholder="أدخل العداد الإجمالي للسيارة" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn">حفظ قراءة العداد في السيرفر 💾</button>
+            </form>
+        </div>
+
+        <h3>📋 القراءات المسجلة للعدادات</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>رقم المركبة</th>
+                    <th>من تاريخ</th>
+                    <th>إلى تاريخ</th>
+                    <th>إجمالي كم المسجل (الفعلي)</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody id="odometerTableBody"></tbody>
+        </table>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyAf-xssfq1KrNKwLE5Nr88P6dIvs5Byz7c",
+        authDomain: "elsalam-system-2e469.firebaseapp.com",
+        databaseURL: "https://elsalam-system-2e469-default-rtdb.firebaseio.com",
+        projectId: "elsalam-system-2e469",
+        storageBucket: "elsalam-system-2e469.firebasestorage.app",
+        messagingSenderId: "422861890504",
+        appId: "1:422861890504:web:bad369e188f323bf7d56fd"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const carDatabase = {
+        "ر ج ف 126": "Daihatsu Terios", "4247 ا د ر": "Nissan - sunny", "1492 ا د ف": "Renault - dokker", "ا ب و 1392": "Chevrolet - tfr",
+        "7696 ا س ب": "Nissan - sunny", "س ف ق 9491": "Nissan - sunny", "1497 ا د ف": "Renault - dokker", "أ د ف 1495": "Renault - dokker",
+        "أ ط ص 2462": "Nissan - sunny", "3468 ك ر ا": "Nissan - sunny", "9492 س ن ط": "Nissan - sunny", "م ر 9226": "Nissan - sunny",
+        "و ر ج 914": "Fiat Tipo", "3659 ك د ه": "Nissan - centra", "أ ص ي 3493": "Toyota - Corolla", "س أ م 5838": "Citroen",
+        "س د ق 5828": "Toyota - Corolla", "321 ب ل ق": "Nissan - centra", "4128 ا س و": "Suzuki - pickup.", "5347 ا ب ل": "Suzuki - pickup.",
+        "و د و 264": "Toyota - Corolla", "4923 ا ج ي": "Suzuki - suzuki van..", "578 ق ي ق": "Suzuki - pickup.", "178 ن ع ي": "Suzuki - pickup.",
+        "5634 ا ر و": "FIAT - doblo classic", "1475 ا د ف": "Renault - dokker", "8694 ا ي ن": "Suzuki - pickup.", "5932 ا ب و": "Suzuki - pickup.",
+        "2751 ا ر ن": "Nissan - sunny", "1549 ا ر م": "Nissan - sunny", "8739 ب ي ط": "Isuzu - td", "2656 ا ب ل": "Nissan - sunny",
+        "7828 ج و ل": "Nissan - sunny", "2629 ا ب ل": "Nissan - sunny", "1765 ا ه ج": "Chevrolet - n300", "2987 ا س ف": "Nissan - sunny",
+        "8748 ج ط ع": "Nissan - sunny", "س س د 2684": "Xpander", "341 ط ج ب": "Nissan - centra", "8171 ج ط ع": "Nissan - sunny",
+        "ك ج ط 7298": "Nissan - sunny", "576 د ج ق": "Toyota - Corolla", "ك د ع 6128": "Nissan - sunny", "415 س ي د": "Nissan - D22",
+        "4248 ا د ر": "Nissan - sunny", "687 ل د ل": "Nissan - sunny", "7858 ا س ب": "Chevrolet - n300", "أ ر ل 4573": "Chevrolet - n300",
+        "2781 ك ر ا": "Nissan - sunny", "7315 ا ع ف": "Chevrolet - n300", "735 ق ن ق": "Chevrolet - n300", "9134 ا ب ص": "Nissan - sunny",
+        "791 ط ي د": "Nissan - D22", "7514 ا ق ي": "Chevrolet - n300", "7919 ج و ل": "Nissan - sunny", "أ ب ل 2656": "Nissan - sunny",
+        "أ ب ل 2629": "Nissan - sunny", "8572 ب ر ا": "Chevrolet - tfr", "6346 ا ج ف": "Chevrolet - tfr", "8231 ا ص ا": "Chevrolet - tfr",
+        "1389 ا ب و": "Chevrolet - tfr", "2679 ا ب و": "Chevrolet - tfr", "7349 ا ف ق": "Chevrolet - tfr", "6234 ا ف ق": "Chevrolet - tfr",
+        "أ ف و 2634": "Chevrolet - tfr", "أ ه ف 2984": "Chevrolet - tfr", "4156 ا ب و": "Chevrolet - tfr 7000", "ا ف ق 6234": "Chevrolet - tfr",
+        "4956 ا ف ق": "Toyota - Hilux", "6948 ا ف ق": "Toyota - Hilux", "8725 ا ه ق": "Toyota - Hilux", "3749 ا و ي": "Toyota - hiace",
+        "4179 ا ص ا": "Nissan - Nissan Pickup", "4358 ا ف و": "Toyota - Hilux", "9568 ا و ب": "Toyota - Hilux", "6149 ا ي ل": "Toyota - Hilux",
+        "2356 ا م ب": "Toyota - Hilux", "196 ق ل ب": "Toyota - Hilux", "967 ه ج د": "Toyota - Hilux", "أ ي ل 6149": "Toyota - Hilux",
+        "7452 ا ف ا": "Citroen", "4746 س د ق": "Toyota - rush", "أ ف أ 8519": "Citroen", "146 ن ج ه": "Peugeot - 5008",
+        "6983 ك د ف": "Kia - sportage", "7487 س ه ن": "Kia - sportage", "592 ن م د": "Toyota - hiace", "3751 ا و ي": "Toyota - hiace 1",
+        "7819 ا ج و": "Chevrolet - jambo7000", "4352 ا و ي": "Toyota - COASTER"
+    };
+
+    // تعبئة السيلكت بالسيارات
+    const select = document.getElementById('carNumberSelect');
+    Object.keys(carDatabase).forEach(carNum => {
+        select.innerHTML += `<option value="${carNum}">${carNum} (${carDatabase[carNum]})</option>`;
+    });
+
+    // حفظ القراءة
+    document.getElementById('odometerForm').addEventListener('submit', function(e){
+        e.preventDefault();
+        database.ref('vehicle_km_records/').push({
+            carNumber: document.getElementById('carNumberSelect').value,
+            fromDate: document.getElementById('fromDate').value,
+            toDate: document.getElementById('toDate').value,
+            totalRegisteredKm: parseFloat(document.getElementById('totalKmInput').value)
+        });
+        this.reset();
+        alert('تم حفظ قراءة العداد بنجاح!');
+    });
+
+    // عرض القراءات المسجلة بجدول
+    database.ref('vehicle_km_records/').on('value', function(snapshot){
+        const tbody = document.getElementById('odometerTableBody'); tbody.innerHTML = '';
+        snapshot.forEach(function(child){
+            const val = child.val();
+            tbody.innerHTML += `<tr>
+                <td>${val.carNumber}</td>
+                <td>${val.fromDate}</td>
+                <td>${val.toDate}</td>
+                <td>${val.totalRegisteredKm} كم</td>
+                <td><button class="btn-delete" onclick="deleteRecord('${child.key}')">حذف</button></td>
+            </tr>`;
+        });
+    });
+
+    function deleteRecord(key) {
+        if(confirm('هل تريد حذف هذه القراءة؟')) {
+            database.ref('vehicle_km_records/' + key).remove();
+        }
+    }
+</script>
+</body>
+</html>
