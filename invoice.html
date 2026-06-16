@@ -189,43 +189,44 @@
             return;
         }
 
-        // إخفاء عناصر الملخص بأمان كامل لمنع التعليق
+        // إخفاء عناصر الملخص مؤقتاً لإعادة البناء النظيف
         if(document.getElementById('primaryUserInfoCard')) document.getElementById('primaryUserInfoCard').style.display = "none";
         if(document.getElementById('odometerSummaryBox')) document.getElementById('odometerSummaryBox').style.display = "none";
 
-        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بناء على تقاطع وتداخل التواريخ
-        database.ref('car_primary_users/').once('value', snapshot => {
-            let userFound = null;
-            
+        let registeredKm = 0;
+        let primaryUserObj = null;
+
+        // الخطوة 1: جلب بيانات المستخدم المخصص الأساسي للمركبة بناء على تقاطع وتداخل التواريخ الذكي
+        database.ref('car_primary_users/').once('value').then(snapshot => {
             snapshot.forEach(child => {
                 const uData = child.val();
                 const dbCar = uData.carNumber || uData.carNum;
                 
-                // فحص دقيق للتداخل والتوافق
                 if(dbCar === carNum && uData.fromDate <= toDate && uData.toDate >= fromDate) {
-                    userFound = uData;
-                    return true; // كسر الـ Loop فوراً عند إيجاد السجل الصحيح المتداخل
+                    primaryUserObj = uData;
+                    return true; // كسر الـ Loop عند إيجاد السجل المتداخل
                 }
             });
 
-            if(userFound) {
+            if(primaryUserObj) {
                 document.getElementById('primaryUserInfoCard').style.display = "block";
                 document.getElementById('infoGridData').innerHTML = `
-                    <div class="info-item"><b>👤 المستخدم الأساسي:</b> ${userFound.mainUser || userFound.username || '-'}</div>
-                    <div class="info-item"><b>💼 مدير المشروع:</b> ${userFound.projectManager || '-'}</div>
-                    <div class="info-item"><b>🏢 القسم:</b> ${userFound.department || '-'}</div>
-                    <div class="info-item"><b>⚙️ الإدارة:</b> ${userFound.administration || userFound.section || '-'}</div>
-                    <div class="info-item"><b>📍 الموقع الأساسي:</b> ${userFound.location || userFound.site || '-'}</div>
-                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص بالسيستم:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
+                    <div class="info-item"><b>👤 المستخدم الأساسي الثابت:</b> ${primaryUserObj.mainUser || primaryUserObj.username || '-'}</div>
+                    <div class="info-item"><b>💼 مدير المشروع:</b> ${primaryUserObj.projectManager || '-'}</div>
+                    <div class="info-item"><b>🏢 القسم:</b> ${primaryUserObj.department || '-'}</div>
+                    <div class="info-item"><b>⚙️ الإدارة:</b> ${primaryUserObj.administration || primaryUserObj.section || '-'}</div>
+                    <div class="info-item"><b>📍 الموقع الأساسي:</b> ${primaryUserObj.location || primaryUserObj.site || '-'}</div>
+                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص بالسيستم:</b> من ${primaryUserObj.fromDate} إلى ${primaryUserObj.toDate}</div>
                 `;
             } else {
                 document.getElementById('primaryUserInfoCard').style.display = "block";
                 document.getElementById('infoGridData').innerHTML = `<div style="color: #e74c3c; grid-column: 1/-1; text-align: center; font-weight: bold;">⚠️ لم يتم تسجيل مستخدم أساسي ثابت لهذه السيارة خلال الفترة المحددة بالفاتورة.</div>`;
             }
 
-            // الخطوة 2: جلب إجمالي العداد الفعلي بناء على تداخل التاريخ الذكي أيضاً
-            let registeredKm = 0;
-            database.ref('vehicle_km_records/').once('value', snapKm => {
+            // الخطوة 2: جلب إجمالي العداد الفعلي المسجل من شاشة المركبات لذات التداخل
+            return database.ref('vehicle_km_records/').once('value');
+        }).then(snapKm => {
+            if (snapKm) {
                 snapKm.forEach(cKm => {
                     const rec = cKm.val();
                     const dbCarKm = rec.carNumber || rec.carNum;
@@ -235,28 +236,36 @@
                         return true; 
                     }
                 });
-                
-                // الخطوة 3: استدعاء جلب تحركات المشاوير وبناء جدول الفاتورة
-                fetchTripsAndBuildInvoice(carNum, fromDate, toDate, registeredKm);
-            });
+            }
+            
+            // الخطوة 3: استدعاء جلب تحركات المشاوير وحساب المتبقي للمستخدم الأساسي
+            fetchTripsAndBuildInvoice(carNum, fromDate, toDate, registeredKm, primaryUserObj);
+        }).catch(err => {
+            console.error("حدث خطأ أثناء معالجة البيانات المتقاطعة:", err);
+            fetchTripsAndBuildInvoice(carNum, fromDate, toDate, 0, null);
         });
     }
 
-    // دالة جلب تحركات الـ Trips وتعبئة الجدول بشكل نهائي وحساب الفروقات
-    function fetchTripsAndBuildInvoice(carNum, fromDate, toDate, registeredKm) {
-        database.ref('trips/').once('value', snapshot => {
+    // دالة جلب تحركات الـ Trips وتعبئة الجدول بشكل نهائي وحساب الفروقات والمتبقي للمستخدم
+    function fetchTripsAndBuildInvoice(carNum, fromDate, toDate, registeredKm, primaryUserObj) {
+        database.ref('trips/').once('value').then(snapshot => {
             const tbody = document.getElementById('invoiceTableBody');
             tbody.innerHTML = '';
 
             let counter = 1;
             let totalTripsKm = 0;
             let grandTotalCost = 0;
+            let primaryUserConsumedKm = 0; // حساب ما استهلكه المستخدم الأساسي تحديداً
             let recordsFound = false;
+
+            // الحصول على اسم المستخدم الأساسي لتتبعه بالمشاوير
+            const targetUsername = primaryUserObj ? (primaryUserObj.mainUser || primaryUserObj.username) : null;
 
             snapshot.forEach(child => {
                 const trip = child.val();
                 const tDate = trip.tripDate || trip.date;
                 const dbCar = trip.carNumber || trip.carNum;
+                const tripUser = trip.username || trip.driverName || '';
 
                 // فلترة مشاوير السيارة التي تقع تماماً بين تاريخين الفاتورة المطلوبة
                 if (dbCar === carNum && tDate >= fromDate && tDate <= toDate) {
@@ -270,11 +279,18 @@
                     totalTripsKm += km;
                     grandTotalCost += cost;
 
+                    // إذا كان المشوار يخص المستخدم الأساسي للسيارة، نقوم بتجميعه بشكل منفصل
+                    if (targetUsername && tripUser.trim() === targetUsername.trim()) {
+                        primaryUserConsumedKm += km;
+                    }
+
                     tbody.innerHTML += `
                         <tr>
                             <td>${counter++}</td>
                             <td>${tDate || '-'}</td>
-                            <td>${trip.username || trip.driverName || '-'}</td>
+                            <td style="${targetUsername && tripUser.trim() === targetUsername.trim() ? 'font-weight:bold; color:#1B365D;' : ''}">
+                                ${tripUser} ${targetUsername && tripUser.trim() === targetUsername.trim() ? ' (مستقبل أساسي)' : ''}
+                            </td>
                             <td>${trip.location || trip.site || '-'}</td>
                             <td>${trip.projectManager || '-'}</td>
                             <td>${trip.department || '-'} / ${trip.section || '-'}</td>
@@ -290,7 +306,7 @@
                 return;
             }
 
-            // سطر تجميعة المجاميع الإجمالية للمشاوير
+            // سطر تجميعة المجاميع الإجمالية للمشاوير بالفاتورة
             tbody.innerHTML += `
                 <tr class="total-row">
                     <td colspan="6" style="text-align: left; padding-left: 25px;">📉 إجمالي مشاوير المنظومة للفترة المذكورة:</td>
@@ -299,23 +315,32 @@
                 </tr>
             `;
 
-            // الخطوة 4: تفعيل صندوق العداد الكلي وعملية الطرح الحسابية الدقيقة المستحقة
+            // تفعيل صندوق العداد الكلي وعرض (المتبقي المخصص للمستعمل الأساسي للسيارة)
             const summaryBox = document.getElementById('odometerSummaryBox');
             summaryBox.style.display = "block";
             
-            if(registeredKm > 0) {
-                const finalRemainingKm = registeredKm - totalTripsKm;
+            if(registeredKm > 0 && targetUsername) {
+                // الحسبة الجديدة: العداد المدخل بالشاشة - ما استهلكه المستخدم الأساسي في تحركاته
+                const finalRemainingKm = registeredKm - primaryUserConsumedKm;
+                
                 summaryBox.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px;">
-                        <span>🚗 مركبة رقم: <mark style="background:#fff; padding:2px 6px; border-radius:3px;">${carNum}</mark></span>
-                        <span>📊 العداد الإجمالي المدخل بالشاشة: ${registeredKm} كم</span>
-                        <span>📈 مجموع كيلومترات مشاوير الفاتورة: ${totalTripsKm.toFixed(2)} كم</span>
-                        <span style="color:#d35400; font-size:16px;">🏁 العداد المتبقي المستحق للسيارة: ${finalRemainingKm.toFixed(2)} كم</span>
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:15px; align-items:center;">
+                        <span>🚗 مركبة رقم: <mark style="background:#fff; padding:2px 6px; border-radius:3px; font-weight:bold;">${carNum}</mark></span>
+                        <span>👤 المستخدم: <span style="color:#1B365D;">${targetUsername}</span></span>
+                        <span>📊 مخصص العداد المدخل بالشاشة: <b>${registeredKm} كم</b></span>
+                        <span>📈 مستهلك المستخدم الأساسي بالفترة: <b style="color:#e67e22;">${primaryUserConsumedKm.toFixed(2)} كم</b></span>
+                        <span style="color:#fff; background:#27ae60; padding:4px 10px; border-radius:4px; font-size:15px;">🏁 العداد المتبقي للمستخدم الأساسي: ${finalRemainingKm.toFixed(2)} كم</span>
                     </div>
                 `;
+            } else if (registeredKm > 0 && !targetUsername) {
+                // إذا وجد عداد ولم يجد مستخدم أساسي ثابت في تلك الفترة
+                const generalRemaining = registeredKm - totalTripsKm;
+                summaryBox.innerHTML = `📊 إجمالي عداد الشاشة: ${registeredKm} كم | إجمالي المستهلك العام: ${totalTripsKm.toFixed(2)} كم | 🏁 المتبقي العام للمركبة: ${generalRemaining.toFixed(2)} كم (لا يوجد مستخدم أساسي ثابت مسجل بالفترة)`;
             } else {
-                summaryBox.innerHTML = `⚠️ لم يتم العثور على قراءة عداد إجمالية مسجلة للشاشة الخاصة بالمركبات لهذه الفترة، يرجى تعبئتها من شاشة العدادات أولاً ليتم الطرح الحسابي تلقائياً.`;
+                summaryBox.innerHTML = `⚠️ تم جلب بنود المشاوير، لكن لم يتم العثور على قراءة عداد إجمالية مسجلة لهذه الفترة بشاشة العدادات، يرجى تعبئتها أولاً ليتم حساب العداد المتبقي للمستخدم الأساسي تلقائياً.`;
             }
+        }).catch(err => {
+            console.error("خطأ أثناء بناء الفاتورة:", err);
         });
     }
 </script>
