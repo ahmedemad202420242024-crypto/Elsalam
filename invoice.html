@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>نظام السلام - استخراج الفاتورة الرسمية</title>
-    <meta http-equiv="Content-Security-Policy" content=\"default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';\">
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline';">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -28,7 +28,7 @@
         th { background-color: var(--primary-color); color: white; }
         .total-row { background-color: #f1c40f; font-weight: bold; }
         .summary-box { background: #e8f4fd; border: 1px solid #bce0fd; padding: 15px; border-radius: 6px; margin-top: 20px; font-size: 16px; font-weight: bold; color: var(--primary-color); display: none; }
-        @media print { .sidebar, .container, .btn-print, th:last-child, td:last-child { display: none !important; } .main-content { margin-right: 0 !important; padding: 0 !important; } body { background: white; } .summary-box { display: block !important; } }
+        @media print { .sidebar, .container, .btn-print { display: none !important; } .main-content { margin-right: 0 !important; padding: 0 !important; } body { background: white; } .summary-box { display: block !important; } }
     </style>
 </head>
 <body>
@@ -101,36 +101,13 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
-    const carDatabase = {
-        "ر ج ف 126": "Daihatsu Terios", "4247 ا د ر": "Nissan - sunny", "1492 ا د ف": "Renault - dokker", "ا ب و 1392": "Chevrolet - tfr",
-        "7696 ا س ب": "Nissan - sunny", "س ف ق 9491": "Nissan - sunny", "1497 ا د ف": "Renault - dokker", "أ د ف 1495": "Renault - dokker",
-        "أ ط ص 2462": "Nissan - sunny", "3468 ك ر ا": "Nissan - sunny", "9492 س ن ط": "Nissan - sunny", "م ر 9226": "Nissan - sunny",
-        "و ر ج 914": "Fiat Tipo", "3659 ك د ه": "Nissan - centra", "أ ص ي 3493": "Toyota - Corolla", "س أ م 5838": "Citroen",
-        "س د ق 5828": "Toyota - Corolla", "321 ب ل ق": "Nissan - centra", "4128 ا س و": "Suzuki - pickup.", "5347 ا ب ل": "Suzuki - pickup.",
-        "و د و 264": "Toyota - Corolla", "4923 ا ج ي": "Suzuki - suzuki van..", "578 ق ي ق": "Suzuki - pickup.", "178 ن ع ي": "Suzuki - pickup.",
-        "5634 ا ر و": "FIAT - doblo classic", "1475 ا د ف": "Renault - dokker", "8694 ا ي ن": "Suzuki - pickup.", "5932 ا ب و": "Suzuki - pickup.",
-        "2751 ا ر ن": "Nissan - sunny", "1549 ا ر م": "Nissan - sunny", "8739 ب ي ط": "Isuzu - td", "2656 ا ب ل": "Nissan - sunny",
-        "7828 ج و ل": "Nissan - sunny", "2629 ا ب ل": "Nissan - sunny", "1765 ا ه ج": "Chevrolet - n300", "2987 ا س ف": "Nissan - sunny",
-        "8748 ج ط ع": "Nissan - sunny", "س س د 2684": "Xpander", "341 ط ج ب": "Nissan - centra", "8171 ج ط ع": "Nissan - sunny",
-        "ك ج ط 7298": "Nissan - sunny", "576 د ج ق": "Toyota - Corolla", "ك د ع 6128": "Nissan - sunny", "415 س ي د": "Nissan - D22",
-        "4248 ا د ر": "Nissan - sunny", "687 ل د ل": "Nissan - sunny", "7858 ا س ب": "Chevrolet - n300", "أ ر ل 4573": "Chevrolet - n300",
-        "2781 ك ر ا": "Nissan - sunny", "7315 ا ع ف": "Chevrolet - n300", "735 ق ن ق": "Chevrolet - n300", "9134 ا ب ص": "Nissan - sunny",
-        "791 ط ي د": "Nissan - D22", "7514 ا ق ي": "Chevrolet - n300", "7919 ج و ل": "Nissan - sunny", "أ ب ل 2656": "Nissan - sunny",
-        "أ ب ل 2629": "Nissan - sunny", "8572 ب ر ا": "Chevrolet - tfr", "6346 ا ج ف": "Chevrolet - tfr", "8231 ا ص ا": "Chevrolet - tfr",
-        "1389 ا ب و": "Chevrolet - tfr", "2679 ا ب و": "Chevrolet - tfr", "7349 ا ف ق": "Chevrolet - tfr", "6234 ا ف ق": "Chevrolet - tfr",
-        "أ ف و 2634": "Chevrolet - tfr", "أ ه ف 2984": "Chevrolet - tfr", "4156 ا ب و": "Chevrolet - tfr 7000", "ا ف ق 6234": "Chevrolet - tfr",
-        "4956 ا ف ق": "Toyota - Hilux", "6948 ا ف ق": "Toyota - Hilux", "8725 ا ه ق": "Toyota - Hilux", "3749 ا و ي": "Toyota - hiace",
-        "4179 ا ص ا": "Nissan - Nissan Pickup", "4358 ا ف و": "Toyota - Hilux", "9568 ا و ب": "Toyota - Hilux", "6149 ا ي ل": "Toyota - Hilux",
-        "2356 ا م ب": "Toyota - Hilux", "196 ق ل ب": "Toyota - Hilux", "967 ه ج د": "Toyota - Hilux", "أ ي ل 6149": "Toyota - Hilux",
-        "7452 ا ف ا": "Citroen", "4746 س د ق": "Toyota - rush", "أ ف أ 8519": "Citroen", "146 ن ج ه": "Peugeot - 5008",
-        "6983 ك د ف": "Kia - sportage", "7487 س ه ن": "Kia - sportage", "592 ن م د": "Toyota - hiace", "3751 ا و ي": "Toyota - hiace 1",
-        "7819 ا ج و": "Chevrolet - jambo7000", "4352 ا و ي": "Toyota - COASTER"
-    };
-
-    // تعبئة قائمة السيارات للفحص
-    const selectCar = document.getElementById('searchCarNumber');
-    Object.keys(carDatabase).forEach(num => {
-        selectCar.innerHTML += `<option value="${num}">${num}</option>`;
+    // جلب قائمة العربيات أوتوماتيكياً من قاعدة البيانات (تحديث ديناميكي)
+    database.ref('custom_db/cars').on('value', snap => {
+        const selectCar = document.getElementById('searchCarNumber');
+        selectCar.innerHTML = '<option value="">كل المركبات</option>';
+        snap.forEach(c => {
+            selectCar.innerHTML += `<option value="${c.val().num}">${c.val().num}</option>`;
+        });
     });
 
     function generateInvoiceReport() {
@@ -147,14 +124,14 @@
             return;
         }
 
-        // الخطوة 1: جلب العداد الإجمالي المسجل للسيارة المحددة في تلك الفترة
         let registeredKm = 0;
+        
+        // جلب العداد المسجل للسيارة بشكل مرن (يتحقق إن كان السجل يقع ضمن النطاق الزمني)
         if(carNum) {
             database.ref('vehicle_km_records/').orderByChild('carNumber').equalTo(carNum).once('value', snapshot => {
                 snapshot.forEach(child => {
                     const rec = child.val();
-                    // التحقق إذا كان السجل يقع في النطاق الزمني المتطابق
-                    if(rec.fromDate === fromDate && rec.toDate === toDate) {
+                    if(rec.fromDate >= fromDate && rec.toDate <= toDate) {
                         registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
                     }
                 });
@@ -185,7 +162,12 @@
                 if (matchCar && matchDate) {
                     recordsFound = true;
                     const km = parseFloat(trip.distance) || 0;
-                    const cost = parseFloat(trip.totalCost.replace(/,/g, '')) || 0;
+                    
+                    let rawCost = trip.totalCost;
+                    if(typeof rawCost === 'string') {
+                        rawCost = rawCost.replace(/,/g, '');
+                    }
+                    const cost = parseFloat(rawCost) || 0;
 
                     totalTripsKm += km;
                     grandTotalCost += cost;
@@ -209,22 +191,21 @@
                 return;
             }
 
-            // إضافة السطر الإجمالي النهائي للمشاوير
             tbody.innerHTML += `
                 <tr class="total-row">
-                    <td colspan="5" style="text-align: left; padding-left: 20px;">إجمالي المشاوير المجمعة للفترة:</td>
+                    <td colspan="5" style="text-align: left; padding-left: 20px;">الإجمالي العام النهائي للمشاوير:</td>
                     <td>${totalTripsKm} كم</td>
                     <td>${grandTotalCost.toFixed(2)} ج.م</td>
                 </tr>
             `;
 
-            // الخطوة 2: حساب وطباعة ناتج طرح كيلومترات العداد المتبقية للسيارة المحددة
+            // عرض الصندوق الأزرق الذكي للحسبة المتبقية في حال اختيار سيارة محددة ووجود عداد مسجل
             if(carNum && registeredKm > 0) {
                 const finalRemainingKm = registeredKm - totalTripsKm;
                 const summaryBox = document.getElementById('odometerSummaryBox');
                 summaryBox.style.display = "block";
                 summaryBox.innerHTML = `
-                    <div style="display:flex; justify-content:space-between;">
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                         <span>🚗 السيارة: ${carNum}</span>
                         <span>📊 العداد الإجمالي المسجل: ${registeredKm} كم</span>
                         <span>📉 إجمالي مشاوير المنظومة: ${totalTripsKm} كم</span>
