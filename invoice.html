@@ -25,13 +25,11 @@
         .btn-search { background: #2ecc71; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; width: 100%; }
         .btn-print { background: #34495e; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 15px; margin-top: 10px; }
         
-        /* كارت ترويسة البيانات الأساسية للمستخدم المستفيد */
         .info-card { background: #fff; border-right: 6px solid #1B365D; border-left: 1px solid #ddd; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; padding: 20px; border-radius: 6px; margin-bottom: 25px; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         .info-card h4 { margin-top: 0; color: #1B365D; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; font-size: 16px; }
         .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; font-size: 14px; color: #2c3e50; }
         .info-item { background: #f8fafc; padding: 10px 15px; border-radius: 4px; border: 1px solid #edf2f7; }
         
-        /* جدول المشاوير التفصيلي */
         table { width: 100%; border-collapse: collapse; background: white; margin-top: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         th, td { padding: 12px 10px; border: 1px solid #e2e8f0; text-align: center; font-size: 13px; }
         th { background-color: var(--primary-color); color: white; font-weight: 600; }
@@ -102,7 +100,7 @@
                     <th>الجهة / الموقع المزار</th>
                     <th>مدير المشروع</th>
                     <th>القسم / الإدارة</th>
-                    <th>المسافة المقوعة</th>
+                    <th>المسافة المقطوعة</th>
                     <th>التكلفة المالية</th>
                 </tr>
             </thead>
@@ -151,7 +149,6 @@
         "7819 ا ج و": "Chevrolet - jambo7000", "4352 ا و ي": "Toyota - COASTER"
     };
 
-    // تعبئة السيلكت بالسيارات عند التحميل
     const selectCar = document.getElementById('searchCarNumber');
     Object.keys(carDatabase).forEach(num => {
         selectCar.innerHTML += `<option value="${num}">${num}</option>`;
@@ -167,18 +164,16 @@
             return;
         }
 
-        // إخفاء العناصر تمهيداً للتحديث المباشر
         document.getElementById('primaryUserInfoCard').style.display = "none";
         document.getElementById('odometerSummaryBox').style.display = "none";
 
-        // 1. جلب بيانات تخصيص مستخدم السيارة الأساسي للفترة المحددة
-        database.ref('car_primary_users/').orderByChild('carNumber').equalTo(carNum).once('value', snapshot => {
+        database.ref('car_primary_users/').once('value', snapshot => {
             let userFound = null;
             
             snapshot.forEach(child => {
                 const uData = child.val();
-                // التحقق من تداخل التواريخ أو وقوع الفلتر بداخل المدة المخصصة للمستخدم الأساسي
-                if(fromDate >= uData.fromDate && toDate <= uData.toDate) {
+                const dbCar = uData.carNumber || uData.carNum;
+                if(dbCar === carNum && fromDate >= uData.fromDate && toDate <= uData.toDate) {
                     userFound = uData;
                 }
             });
@@ -186,29 +181,28 @@
             if(userFound) {
                 document.getElementById('primaryUserInfoCard').style.display = "block";
                 document.getElementById('infoGridData').innerHTML = `
-                    <div class="info-item"><b>👤 المستخدم الأساسي:</b> ${userFound.mainUser}</div>
-                    <div class="info-item"><b>💼 مدير المشروع:</b> ${userFound.projectManager}</div>
-                    <div class="info-item"><b>🏢 القسم:</b> ${userFound.department}</div>
-                    <div class="info-item"><b>⚙️ الإدارة:</b> ${userFound.administration}</div>
-                    <div class="info-item"><b>📍 الموقع الأساسي:</b> ${userFound.location}</div>
-                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص بالسيستم:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
+                    <div class="info-item"><b>👤 المستخدم الأساسي:</b> ${userFound.mainUser || userFound.username || '-'}</div>
+                    <div class="info-item"><b>💼 مدير المشروع:</b> ${userFound.projectManager || '-'}</div>
+                    <div class="info-item"><b>🏢 القسم:</b> ${userFound.department || '-'}</div>
+                    <div class="info-item"><b>⚙️ الإدارة:</b> ${userFound.administration || userFound.section || '-'}</div>
+                    <div class="info-item"><b>📍 الموقع الأساسي:</b> ${userFound.location || userFound.site || '-'}</div>
+                    <div class="info-item" style="border-right: 3px solid #e67e22;"><b>📅 مدة التخصيص:</b> من ${userFound.fromDate} إلى ${userFound.toDate}</div>
                 `;
             } else {
                 document.getElementById('primaryUserInfoCard').style.display = "block";
-                document.getElementById('infoGridData').innerHTML = `<div style="color: #e74c3c; grid-column: 1/-1; text-align: center; font-weight: bold;">⚠️ لم يتم تسجيل مستخدم أساسي ثابت لهذه السيارة خلال المدة المحددة بشاشة التخصيص.</div>`;
+                document.getElementById('infoGridData').innerHTML = `<div style="color: #e74c3c; grid-column: 1/-1; text-align: center; font-weight: bold;">⚠️ لم يتم تسجيل مستخدم أساسي ثابت لهذه السيارة خلال هذه الفترة المحددة بشاشة التخصيص.</div>`;
             }
 
-            // 2. جلب إجمالي العداد الفعلي للمركبة من شاشة تسجيل عداد المركبات
             let registeredKm = 0;
-            database.ref('vehicle_km_records/').orderByChild('carNumber').equalTo(carNum).once('value', snapKm => {
+            database.ref('vehicle_km_records/').once('value', snapKm => {
                 snapKm.forEach(cKm => {
                     const rec = cKm.val();
-                    if(rec.fromDate >= fromDate && rec.toDate <= toDate) {
+                    const dbCarKm = rec.carNumber || rec.carNum;
+                    if(dbCarKm === carNum && rec.fromDate >= fromDate && rec.toDate <= toDate) {
                         registeredKm = parseFloat(rec.totalRegisteredKm) || 0;
                     }
                 });
                 
-                // 3. جلب جميع المشاوير وبدء سردها بالجدول التابع للفاتورة
                 fetchTripsAndBuildInvoice(carNum, fromDate, toDate, registeredKm);
             });
         });
@@ -226,26 +220,26 @@
 
             snapshot.forEach(child => {
                 const trip = child.val();
-                const tDate = trip.tripDate;
+                const tDate = trip.tripDate || trip.date;
+                const dbCar = trip.carNumber || trip.carNum;
 
-                if (trip.carNumber === carNum && tDate >= fromDate && tDate <= toDate) {
+                if (dbCar === carNum && tDate >= fromDate && tDate <= toDate) {
                     recordsFound = true;
-                    const km = parseFloat(trip.distance) || 0;
+                    const km = parseFloat(trip.distance) || parseFloat(trip.km) || 0;
                     
-                    let rawCost = trip.totalCost;
+                    let rawCost = trip.totalCost || trip.cost || 0;
                     if(typeof rawCost === 'string') rawCost = rawCost.replace(/,/g, '');
                     const cost = parseFloat(rawCost) || 0;
 
                     totalTripsKm += km;
                     grandTotalCost += cost;
 
-                    // كتابة تفاصيل المشاوير التفصيلية صفا بصف
                     tbody.innerHTML += `
                         <tr>
                             <td>${counter++}</td>
                             <td>${tDate || '-'}</td>
-                            <td>${trip.username || '-'}</td>
-                            <td>${trip.location || '-'}</td>
+                            <td>${trip.username || trip.driverName || '-'}</td>
+                            <td>${trip.location || trip.site || '-'}</td>
                             <td>${trip.projectManager || '-'}</td>
                             <td>${trip.department || '-'} / ${trip.section || '-'}</td>
                             <td>${km} كم</td>
@@ -260,7 +254,6 @@
                 return;
             }
 
-            // سطر المجموع التفصيلي للمشاوير داخل جدول الفاتورة النهائي
             tbody.innerHTML += `
                 <tr class="total-row">
                     <td colspan="6" style="text-align: left; padding-left: 25px;">📉 إجمالي مشاوير المنظومة للفترة المذكورة:</td>
@@ -269,7 +262,6 @@
                 </tr>
             `;
 
-            // 4. تفعيل صندوق العداد الكلي وعملية الطرح الحسابية
             if(registeredKm > 0) {
                 const finalRemainingKm = registeredKm - totalTripsKm;
                 const summaryBox = document.getElementById('odometerSummaryBox');
